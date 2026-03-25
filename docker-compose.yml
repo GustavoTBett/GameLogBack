@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:17.5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - local-network
+volumes:
+  postgres-data:
+networks:
+  local-network:
+    driver: bridge

@@ -1,0 +1,12 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="0001" author="gustavotbett">
+        <sqlFile path="/liquibase/changelogs/GLBACK-001/001_init.sql"/>
+    </changeSet>
+    <changeSet id="0002" author="gustavotbett">
+        <sqlFile path="/liquibase/changelogs/GLBACK-001/002_add_user_role.sql"/>
+    </changeSet>
+</databaseChangeLog>
