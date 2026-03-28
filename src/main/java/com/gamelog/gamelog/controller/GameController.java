@@ -2,12 +2,8 @@ package com.gamelog.gamelog.controller;
 
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.service.game.GameService;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import java.net.URI;
 
 @RestController
 @RequestMapping("/games")

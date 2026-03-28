@@ -1,7 +1,6 @@
 package com.gamelog.gamelog.service.gameGenre;
 
 import com.gamelog.gamelog.model.GameGenre;
-import com.gamelog.gamelog.model.Genre;
 
 import java.util.Optional;
 

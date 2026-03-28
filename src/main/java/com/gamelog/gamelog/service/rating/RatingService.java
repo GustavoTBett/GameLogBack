@@ -1,8 +1,6 @@
 package com.gamelog.gamelog.service.rating;
 
-import com.gamelog.gamelog.controller.dto.FavoriteRequest;
 import com.gamelog.gamelog.controller.dto.RatingRequest;
-import com.gamelog.gamelog.model.Favorite;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.model.User;

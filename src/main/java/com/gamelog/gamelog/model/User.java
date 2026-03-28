@@ -1,10 +1,13 @@
 package com.gamelog.gamelog.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.gamelog.gamelog.model.EnumUser.UserRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+
+import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -37,5 +40,8 @@ public class User extends MasterEntityWAudit {
     private String avatarUrl;
 
     private String bio;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<UserPlatformMapping> platforms;
 
 }

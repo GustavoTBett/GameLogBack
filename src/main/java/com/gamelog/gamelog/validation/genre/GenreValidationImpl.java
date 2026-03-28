@@ -3,7 +3,6 @@ package com.gamelog.gamelog.validation.genre;
 import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.exception.genre.AlreadyExistGenreWithName;
 import com.gamelog.gamelog.model.Genre;
-import com.gamelog.gamelog.service.game.GameServiceImpl;
 import com.gamelog.gamelog.service.genre.GenreServiceImpl;
 
 import java.util.Objects;

@@ -3,6 +3,7 @@ package com.gamelog.gamelog.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -27,9 +28,14 @@ import java.util.List;
 public class SecurityConfig {
 
     private final List<String> allowedOrigins;
+    private final Environment environment;
 
-    public SecurityConfig(@Value("${app.security.allowed-origins}") List<String> allowedOrigins) {
+    public SecurityConfig(
+            @Value("${app.security.allowed-origins}") List<String> allowedOrigins,
+            Environment environment
+    ) {
         this.allowedOrigins = allowedOrigins;
+        this.environment = environment;
     }
 
     @Bean
@@ -93,7 +99,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
+        if (isLocalProfileActive()) {
+            configuration.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            configuration.setAllowedOrigins(allowedOrigins);
+        }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-CSRF-TOKEN", "Authorization"));
         configuration.setExposedHeaders(List.of("Set-Cookie"));
@@ -103,6 +113,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private boolean isLocalProfileActive() {
+        return List.of(environment.getActiveProfiles()).contains("local");
     }
 }
 

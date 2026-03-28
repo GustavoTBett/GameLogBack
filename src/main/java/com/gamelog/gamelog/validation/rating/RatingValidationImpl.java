@@ -4,7 +4,6 @@ import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.exception.rating.AlreadyExistRatingWithUserAndGame;
 import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.service.rating.RatingService;
-import com.gamelog.gamelog.validation.rating.RatingValidation;
 
 import java.util.Objects;
 import java.util.Optional;

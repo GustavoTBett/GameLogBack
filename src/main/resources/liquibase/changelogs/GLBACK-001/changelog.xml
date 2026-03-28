@@ -9,4 +9,7 @@
     <changeSet id="0002" author="gustavotbett">
         <sqlFile path="/liquibase/changelogs/GLBACK-001/002_add_user_role.sql"/>
     </changeSet>
+    <changeSet id="0003" author="gustavotbett">
+        <sqlFile path="/liquibase/changelogs/GLBACK-001/003_add_platform_support.sql"/>
+    </changeSet>
 </databaseChangeLog>

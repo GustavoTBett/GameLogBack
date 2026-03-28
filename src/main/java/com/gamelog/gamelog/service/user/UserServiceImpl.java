@@ -1,7 +1,7 @@
 package com.gamelog.gamelog.service.user;
 
+import com.gamelog.gamelog.model.EnumUser.UserRole;
 import com.gamelog.gamelog.model.User;
-import com.gamelog.gamelog.model.UserRole;
 import com.gamelog.gamelog.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,6 +28,10 @@ public class UserServiceImpl implements UserService{
 
         if (user.getRole() == null) {
             user.setRole(UserRole.USER);
+        }
+
+        if (user.getPlatforms() != null) {
+            user.setPlatforms(null);
         }
 
         if (!isPasswordEncoded(user.getPassword())) {

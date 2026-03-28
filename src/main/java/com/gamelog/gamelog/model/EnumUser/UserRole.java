@@ -1,4 +1,4 @@
-package com.gamelog.gamelog.model;
+package com.gamelog.gamelog.model.EnumUser;
 
 public enum UserRole {
     USER,

@@ -7,7 +7,6 @@ import com.gamelog.gamelog.service.genre.GenreService;
 import com.gamelog.gamelog.service.rating.RatingService;
 import com.gamelog.gamelog.service.user.UserService;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;

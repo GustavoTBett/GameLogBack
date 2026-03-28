@@ -1,13 +1,12 @@
 package com.gamelog.gamelog.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.Set;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -32,7 +31,8 @@ public class Game extends MasterEntityWAudit {
 
     private String publiser;
 
-    private String platform;
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<GamePlatformMapping> platforms;
 
     private String cover_url;
 

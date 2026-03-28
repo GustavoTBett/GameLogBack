@@ -1,7 +1,7 @@
 package com.gamelog.gamelog.controller;
 
+import com.gamelog.gamelog.model.EnumUser.UserRole;
 import com.gamelog.gamelog.model.User;
-import com.gamelog.gamelog.model.UserRole;
 import com.gamelog.gamelog.service.user.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +49,7 @@ public class UserController {
                     existingUser.setAvatarUrl(user.getAvatarUrl());
                     existingUser.setBio(user.getBio());
                     existingUser.setRole(user.getRole());
+                    existingUser.setPlatforms(user.getPlatforms());
                     return ResponseEntity.ok(userService.save(existingUser));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
