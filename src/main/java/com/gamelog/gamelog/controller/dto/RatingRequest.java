@@ -1,0 +1,16 @@
+package com.gamelog.gamelog.controller.dto;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public record RatingRequest(
+        @NotNull(message = "userId is required") Long userId,
+        @NotNull(message = "gameId is required") Long gameId,
+        @Min(value = 1, message = "rating must be at least 1")
+        @Max(value = 5, message = "rating must be at most 5")
+        Integer score,
+        String review
+) {
+}
+
