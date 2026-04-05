@@ -15,4 +15,7 @@
     <changeSet id="0004" author="gustavotbett">
         <sqlFile path="/liquibase/changelogs/GLBACK-001/004_add_password_reset_token.sql"/>
     </changeSet>
+    <changeSet id="0005" author="copilot">
+        <sqlFile path="/liquibase/changelogs/GLBACK-001/005_seed_games_from_csv.sql"/>
+    </changeSet>
 </databaseChangeLog>
