@@ -1,28 +1,45 @@
 package com.gamelog.gamelog.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-@EqualsAndHashCode(callSuper = true)
+import java.io.Serializable;
+
 @Data
 @Entity
 @Table(name = "game_genre")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class GameGenre extends MasterEntity{
+public class GameGenre implements Serializable {
 
-    @ManyToOne
+    @EmbeddedId
+    private GameGenreId id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("gameId")
     @JoinColumn(name = "game_id", nullable = false)
     @NotNull(message = "Game is required")
     private Game game;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("genreId")
     @JoinColumn(name = "genre_id", nullable = false)
     @NotNull(message = "Genre is required")
     private Genre genre;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GameGenre that = (GameGenre) o;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
+    }
 }
+

@@ -18,4 +18,7 @@
     <changeSet id="0005" author="copilot">
         <sqlFile path="/liquibase/changelogs/GLBACK-001/005_seed_games_from_csv.sql"/>
     </changeSet>
+    <changeSet id="0006" author="copilot">
+        <sqlFile path="/liquibase/changelogs/GLBACK-001/006_add_rawg_image_enrichment.sql"/>
+    </changeSet>
 </databaseChangeLog>

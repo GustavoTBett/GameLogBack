@@ -1,6 +1,7 @@
 package com.gamelog.gamelog.controller;
 
 import com.gamelog.gamelog.model.GameGenre;
+import com.gamelog.gamelog.model.GameGenreId;
 import com.gamelog.gamelog.service.gameGenre.GameGenreService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,9 +19,15 @@ public class GameGenreController {
         this.gameGenreService = gameGenreService;
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<GameGenre> getById(@PathVariable Long id) {
-        return gameGenreService.get(id)
+    @GetMapping("/{gameId}/{genreId}")
+    public ResponseEntity<GameGenre> getById(
+            @PathVariable Long gameId,
+            @PathVariable Long genreId
+    ) {
+        return gameGenreService.get(GameGenreId.builder()
+                        .gameId(gameId)
+                        .genreId(genreId)
+                        .build())
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

@@ -1,6 +1,7 @@
 package com.gamelog.gamelog.service.gameGenre;
 
 import com.gamelog.gamelog.model.GameGenre;
+import com.gamelog.gamelog.model.GameGenreId;
 import com.gamelog.gamelog.repository.GameGenreRepository;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +22,7 @@ public class GameGenreServiceImpl implements GameGenreService {
     }
 
     @Override
-    public Optional<GameGenre> get(Long id) {
+    public Optional<GameGenre> get(GameGenreId id) {
         return gameGenreRepository.findById(id);
     }
 
