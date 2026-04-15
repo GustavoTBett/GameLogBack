@@ -31,7 +31,7 @@ public class RawgGameImageResolver implements GameImageResolver {
 
     private final RawgImagePersistenceService rawgImagePersistenceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient;
+    private HttpClient httpClient;
     private final Object rawgRequestMonitor = new Object();
 
     @Value("${rawg.api.key:}")
@@ -58,13 +58,14 @@ public class RawgGameImageResolver implements GameImageResolver {
 
     public RawgGameImageResolver(RawgImagePersistenceService rawgImagePersistenceService) {
         this.rawgImagePersistenceService = rawgImagePersistenceService;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(5000))
-                .build();
     }
 
     @PostConstruct
     public void initRawgApiKey() {
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(rawgTimeoutMs))
+                .build();
+
         if (StringUtils.hasText(rawgApiKey)) {
             effectiveRawgApiKey = rawgApiKey.trim();
             return;

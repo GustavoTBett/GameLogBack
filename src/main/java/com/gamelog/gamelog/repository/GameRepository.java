@@ -14,11 +14,9 @@ public interface GameRepository extends JpaRepository<Game, Long>, JpaSpecificat
 			value = """
 					SELECT g
 					FROM Game g
-					ORDER BY (
-						SELECT COUNT(r)
-						FROM Rating r
-						WHERE r.game.id = g.id
-					) DESC,
+					LEFT JOIN Rating r ON r.game = g
+					GROUP BY g
+					ORDER BY COUNT(r) DESC
 					g.averageRating DESC,
 					g.id DESC
 					""",
