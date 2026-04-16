@@ -1,0 +1,21 @@
+package com.gamelog.gamelog.controller.dto;
+
+import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+
+import java.time.LocalDate;
+import java.util.List;
+
+public record GameSummaryResponse(
+        Long id,
+        String name,
+        String slug,
+        String description,
+        String coverUrl,
+        Double averageRating,
+        LocalDate releaseDate,
+        String developer,
+        Long totalReviews,
+        List<String> genres,
+        List<GamePlatform> platforms
+) {
+}

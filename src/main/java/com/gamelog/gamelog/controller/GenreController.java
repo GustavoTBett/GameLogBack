@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/genres")
 public class GenreController {
@@ -16,6 +18,11 @@ public class GenreController {
 
     public GenreController(GenreService genreService) {
         this.genreService = genreService;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Genre>> findAll() {
+        return ResponseEntity.ok(genreService.findAll());
     }
 
     @GetMapping("/{id}")

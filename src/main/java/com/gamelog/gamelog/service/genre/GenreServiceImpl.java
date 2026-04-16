@@ -5,6 +5,7 @@ import com.gamelog.gamelog.repository.GenreRepository;
 import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -36,6 +37,11 @@ public class GenreServiceImpl implements GenreService{
         Genre example = new Genre();
         example.setName(name);
         return genreRepository.findOne(Example.of(example));
+    }
+
+    @Override
+    public List<Genre> findAll() {
+        return genreRepository.findAll();
     }
 
 
