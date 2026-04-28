@@ -10,6 +10,8 @@ import java.util.List;
 
 public interface RatingRepository extends JpaRepository<Rating, Long> {
 
+    List<Rating> findAllByGameIdOrderByCreatedAtDescIdDesc(Long gameId);
+
 	@Query("""
 			SELECT r.game.id, COUNT(r.id)
 			FROM Rating r

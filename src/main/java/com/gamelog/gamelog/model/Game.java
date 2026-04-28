@@ -27,6 +27,9 @@ public class Game extends MasterEntityWAudit {
 
     private String description;
 
+    @Column(name = "description_pt_br")
+    private String descriptionPtBr;
+
     private LocalDate releaseDate;
 
     private String developer;

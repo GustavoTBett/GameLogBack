@@ -21,4 +21,7 @@
     <changeSet id="0006" author="gustavotbett">
         <sqlFile path="/liquibase/changelogs/GLBACK-001/006_add_rawg_image_enrichment.sql"/>
     </changeSet>
+    <changeSet id="0007" author="gustavotbett">
+        <sqlFile path="/liquibase/changelogs/GLBACK-001/007_add_game_description_pt_br.sql"/>
+    </changeSet>
 </databaseChangeLog>

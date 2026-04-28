@@ -26,13 +26,17 @@ public class RawgImageBackfillService {
     public void triggerBackfillForGames(Collection<Game> games) {
         Set<Long> idsToProcess = games.stream()
                 .filter(game -> game.getId() != null)
-                .filter(game -> !StringUtils.hasText(game.getRawgImageUrl()))
+            .filter(game ->
+                !StringUtils.hasText(game.getRawgImageUrl())
+                    || !StringUtils.hasText(game.getDescription())
+                    || !StringUtils.hasText(game.getDescriptionPtBr())
+            )
                 .map(Game::getId)
                 .filter(inFlightGameIds::add)
                 .collect(Collectors.toSet());
 
         if (idsToProcess.isEmpty()) {
-            log.debug("RAWG async backfill skipped (all requested games already have RAWG image or are in-flight)");
+            log.debug("RAWG async backfill skipped (all requested games already have RAWG metadata or are in-flight)");
             return;
         }
 
