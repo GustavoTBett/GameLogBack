@@ -1,6 +1,7 @@
 package com.gamelog.gamelog.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import com.gamelog.gamelog.exception.rating.AlreadyExistRatingWithUserAndGame;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -70,5 +71,14 @@ class ApiExceptionHandlerTest {
 
         assertEquals(400, response.getStatusCode().value());
         assertEquals("Generic runtime error", response.getBody().get("message"));
+    }
+
+    @Test
+    void handleAlreadyExistsShouldReturn409() {
+        ResponseEntity<Map<String, Object>> response =
+                handler.handleAlreadyExists(new AlreadyExistRatingWithUserAndGame("Duplicate rating"));
+
+        assertEquals(409, response.getStatusCode().value());
+        assertEquals("Duplicate rating", response.getBody().get("message"));
     }
 }

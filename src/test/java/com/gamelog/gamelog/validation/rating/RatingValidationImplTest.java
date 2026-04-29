@@ -3,7 +3,7 @@ package com.gamelog.gamelog.validation.rating;
 import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.exception.rating.AlreadyExistRatingWithUserAndGame;
 import com.gamelog.gamelog.model.Rating;
-import com.gamelog.gamelog.service.rating.RatingService;
+import com.gamelog.gamelog.repository.RatingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 class RatingValidationImplTest {
 
     @Mock
-    private RatingService ratingService;
+    private RatingRepository ratingRepository;
 
     @InjectMocks
     private RatingValidationImpl ratingValidation;
@@ -35,11 +35,15 @@ class RatingValidationImplTest {
         Rating requestRating = org.mockito.Mockito.mock(Rating.class);
         Rating existingRating = org.mockito.Mockito.mock(Rating.class);
 
-        when(requestRating.getUser()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class));
-        when(requestRating.getGame()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class));
+        com.gamelog.gamelog.model.User user = org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class);
+        com.gamelog.gamelog.model.Game game = org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class);
+        when(user.getId()).thenReturn(1L);
+        when(game.getId()).thenReturn(2L);
+        when(requestRating.getUser()).thenReturn(user);
+        when(requestRating.getGame()).thenReturn(game);
         when(requestRating.getId()).thenReturn(1L);
         when(existingRating.getId()).thenReturn(2L);
-        when(ratingService.getByUserAndGame(requestRating.getUser(), requestRating.getGame()))
+        when(ratingRepository.findFirstByUserIdAndGameId(1L, 2L))
                 .thenReturn(Optional.of(existingRating));
 
         assertThrows(AlreadyExistRatingWithUserAndGame.class, () -> ratingValidation.validateUniqueUserGame(requestRating));
@@ -48,9 +52,13 @@ class RatingValidationImplTest {
     @Test
     void validateUniqueUserGameShouldPassWhenNoExistingRating() {
         Rating requestRating = org.mockito.Mockito.mock(Rating.class);
-        when(requestRating.getUser()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class));
-        when(requestRating.getGame()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class));
-        when(ratingService.getByUserAndGame(requestRating.getUser(), requestRating.getGame()))
+        com.gamelog.gamelog.model.User user = org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class);
+        com.gamelog.gamelog.model.Game game = org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class);
+        when(user.getId()).thenReturn(1L);
+        when(game.getId()).thenReturn(2L);
+        when(requestRating.getUser()).thenReturn(user);
+        when(requestRating.getGame()).thenReturn(game);
+        when(ratingRepository.findFirstByUserIdAndGameId(1L, 2L))
                 .thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> ratingValidation.validateUniqueUserGame(requestRating));

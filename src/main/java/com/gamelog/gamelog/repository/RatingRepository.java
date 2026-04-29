@@ -7,10 +7,20 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface RatingRepository extends JpaRepository<Rating, Long> {
 
+	Optional<Rating> findFirstByUserIdAndGameId(Long userId, Long gameId);
+
     List<Rating> findAllByGameIdOrderByCreatedAtDescIdDesc(Long gameId);
+
+	@Query("""
+			SELECT COALESCE(AVG(r.score), 0)
+			FROM Rating r
+			WHERE r.game.id = :gameId
+			""")
+	Double findAverageScoreByGameId(@Param("gameId") Long gameId);
 
 	@Query("""
 			SELECT r.game.id, COUNT(r.id)

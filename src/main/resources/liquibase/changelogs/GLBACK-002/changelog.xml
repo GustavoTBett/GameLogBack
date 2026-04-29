@@ -1,0 +1,16 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="0001-change-rating-scale" author="assistant">
+        <comment>Alter rating score constraint to allow 1..10 and increase game rating precision</comment>
+        <sql>
+            ALTER TABLE rating DROP CONSTRAINT IF EXISTS rating_score_check;
+            ALTER TABLE rating ADD CONSTRAINT rating_score_between_1_10 CHECK (score BETWEEN 1 AND 10);
+            ALTER TABLE game ALTER COLUMN average_rating TYPE NUMERIC(4,2);
+            ALTER TABLE game ALTER COLUMN default_rating TYPE NUMERIC(4,2);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

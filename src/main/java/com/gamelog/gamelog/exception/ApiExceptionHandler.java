@@ -1,6 +1,8 @@
 package com.gamelog.gamelog.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import com.gamelog.gamelog.exception.rating.AlreadyExistRatingWithUserAndGame;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -17,6 +19,18 @@ public class ApiExceptionHandler {
     @ExceptionHandler(EntityCannotBeNull.class)
     public ResponseEntity<Map<String, Object>> handleEntityCannotBeNull(EntityCannotBeNull exception) {
         return buildResponse(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(AlreadyExistRatingWithUserAndGame.class)
+    public ResponseEntity<Map<String, Object>> handleAlreadyExists(AlreadyExistRatingWithUserAndGame exception) {
+        return buildResponse(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException exception) {
+        return buildResponse(HttpStatus.CONFLICT, exception.getMostSpecificCause() != null
+                ? exception.getMostSpecificCause().getMessage()
+                : exception.getMessage());
     }
 
     @ExceptionHandler({IllegalArgumentException.class, ConstraintViolationException.class})
