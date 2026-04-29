@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpTimeoutException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -47,6 +48,24 @@ public class RawgGameImageResolver implements GameImageResolver {
 
     @Value("${rawg.api.min-interval-ms:3500}")
     private long rawgMinIntervalMs;
+
+    @Value("${app.translation.base-url:}")
+    private String translationBaseUrl;
+
+    @Value("${app.translation.timeout-ms:5000}")
+    private int translationTimeoutMs;
+
+    @Value("${app.translation.connect-timeout-ms:5000}")
+    private int translationConnectTimeoutMs;
+
+    @Value("${app.translation.retry-count:1}")
+    private int translationRetryCount;
+
+    @Value("${app.translation.source-lang:en}")
+    private String translationSourceLang;
+
+    @Value("${app.translation.target-lang:pt}")
+    private String translationTargetLang;
 
     private long nextRawgRequestAtMs;
 
@@ -100,32 +119,247 @@ public class RawgGameImageResolver implements GameImageResolver {
         return defaultImageUrl;
     }
 
-    public void enrichRawgImageIfMissing(Game game) {
-        if (game == null || game.getId() == null || StringUtils.hasText(game.getRawgImageUrl())) {
+    @Override
+    public void enrichRawgMetadataIfMissing(Game game) {
+        if (game == null || game.getId() == null) {
+            log.debug("RAWG metadata sync skipped because game is null or has no id");
             return;
         }
 
-        OffsetDateTime now = OffsetDateTime.now();
-        String rawgImage = fetchRawgImage(game);
-        if (StringUtils.hasText(rawgImage)) {
-            rawgImagePersistenceService.persistRawgImageIfChanged(game.getId(), rawgImage, now);
+        boolean needsFirstSync = game.getImageLastCheckedAt() == null;
+        boolean missingImage = !StringUtils.hasText(game.getRawgImageUrl());
+        boolean missingDescription = !StringUtils.hasText(game.getDescription());
+        boolean missingDescriptionPtBr = !StringUtils.hasText(game.getDescriptionPtBr());
+
+        if (!needsFirstSync && !missingImage && !missingDescription && !missingDescriptionPtBr) {
+            log.debug(
+                    "RAWG metadata sync skipped gameId={} name={} (already synchronized at {})",
+                    game.getId(),
+                    game.getName(),
+                    game.getImageLastCheckedAt()
+            );
+            return;
         }
+
+        log.info(
+            "RAWG metadata sync started gameId={} name={} hasImage={} hasDescription={} hasDescriptionPtBr={} needsFirstSync={}",
+                game.getId(),
+                game.getName(),
+                !missingImage,
+                !missingDescription,
+            !missingDescriptionPtBr,
+                needsFirstSync
+        );
+
+        OffsetDateTime now = OffsetDateTime.now();
+        RawgMetadata rawgMetadata = fetchRawgMetadata(game);
+        if (rawgMetadata == null || (!StringUtils.hasText(rawgMetadata.imageUrl()) && !StringUtils.hasText(rawgMetadata.description()))) {
+            log.warn("RAWG metadata sync returned empty data gameId={} name={}", game.getId(), game.getName());
+            return;
+        }
+
+        log.info(
+                "RAWG metadata fetched gameId={} name={} hasImage={} hasDescription={} rawgId={}",
+                game.getId(),
+                game.getName(),
+                StringUtils.hasText(rawgMetadata.imageUrl()),
+                StringUtils.hasText(rawgMetadata.description()),
+                rawgMetadata.rawgId()
+        );
+
+        String descriptionPtBr = null;
+        if (StringUtils.hasText(rawgMetadata.description()) && (needsFirstSync || missingDescriptionPtBr)) {
+            descriptionPtBr = translateToTargetLanguage(rawgMetadata.description(), game);
+        }
+
+        if (!StringUtils.hasText(descriptionPtBr) && StringUtils.hasText(game.getDescriptionPtBr())) {
+            descriptionPtBr = game.getDescriptionPtBr();
+        }
+
+        rawgImagePersistenceService.persistRawgMetadataIfChanged(
+                game.getId(),
+                rawgMetadata.imageUrl(),
+                rawgMetadata.description(),
+            descriptionPtBr,
+                now
+        );
+
+        if (StringUtils.hasText(rawgMetadata.imageUrl())) {
+            game.setRawgImageUrl(rawgMetadata.imageUrl());
+        }
+
+        if (StringUtils.hasText(rawgMetadata.description())) {
+            game.setDescription(rawgMetadata.description());
+        }
+
+        if (StringUtils.hasText(descriptionPtBr)) {
+            game.setDescriptionPtBr(descriptionPtBr);
+        }
+
+        log.info(
+                "RAWG metadata sync finished gameId={} name={} hasImage={} hasDescription={} hasDescriptionPtBr={}",
+                game.getId(),
+                game.getName(),
+                StringUtils.hasText(game.getRawgImageUrl()),
+                StringUtils.hasText(game.getDescription()),
+                StringUtils.hasText(game.getDescriptionPtBr())
+        );
     }
 
-    private String fetchRawgImage(Game game) {
-        if (!StringUtils.hasText(effectiveRawgApiKey) || !StringUtils.hasText(game.getName())) {
+    private String translateToTargetLanguage(String text, Game game) {
+        if (!StringUtils.hasText(text)) {
             return null;
         }
 
-        String rawgImage = callRawg(game, true);
-        if (StringUtils.hasText(rawgImage)) {
-            return rawgImage;
+        if (!StringUtils.hasText(translationBaseUrl)) {
+            log.debug("Translation skipped gameId={} because app.translation.base-url is empty", game.getId());
+            return null;
         }
 
-        return callRawg(game, false);
+        String baseUrl = translationBaseUrl.endsWith("/")
+            ? translationBaseUrl.substring(0, translationBaseUrl.length() - 1)
+            : translationBaseUrl;
+        String requestUrl = baseUrl + "/translate";
+        int attempts = Math.max(1, translationRetryCount + 1);
+
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+            JsonNode requestBody = objectMapper.createObjectNode()
+                .put("q", text)
+                .put("source", translationSourceLang)
+                .put("target", translationTargetLang)
+                .put("format", "text");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(requestUrl))
+                .header("User-Agent", RAWG_USER_AGENT)
+                .header("Content-Type", "application/json")
+                .timeout(Duration.ofMillis(translationTimeoutMs))
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody)))
+                .build();
+
+            HttpClient translationClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(translationConnectTimeoutMs))
+                .build();
+
+            HttpResponse<String> response = translationClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn(
+                    "Translation request failed gameId={} status={} attempt={}/{}",
+                    game.getId(),
+                    response.statusCode(),
+                    attempt,
+                    attempts
+                );
+                return null;
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            String translatedText = root.path("translatedText").asText(null);
+            String normalized = normalizeText(translatedText);
+
+            log.debug(
+                "Translation result gameId={} hasTranslatedText={} attempt={}/{}",
+                game.getId(),
+                StringUtils.hasText(normalized),
+                attempt,
+                attempts
+            );
+
+            return normalized;
+            } catch (HttpTimeoutException ex) {
+            log.warn(
+                "Translation timeout gameId={} attempt={}/{} timeoutMs={}",
+                game.getId(),
+                attempt,
+                attempts,
+                translationTimeoutMs
+            );
+            } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn("Translation request interrupted gameId={}", game.getId());
+            return null;
+            } catch (Exception ex) {
+            log.warn(
+                "Translation request failed gameId={} attempt={}/{}",
+                game.getId(),
+                attempt,
+                attempts,
+                ex
+            );
+            return null;
+            }
+        }
+
+        return null;
     }
 
-    private String callRawg(Game game, boolean includeDates) {
+    public void enrichRawgImageIfMissing(Game game) {
+        enrichRawgMetadataIfMissing(game);
+    }
+
+    private RawgMetadata fetchRawgMetadata(Game game) {
+        if (!StringUtils.hasText(effectiveRawgApiKey) || !StringUtils.hasText(game.getName())) {
+            log.warn(
+                    "RAWG metadata fetch skipped gameId={} name={} hasApiKey={} hasGameName={}",
+                    game.getId(),
+                    game.getName(),
+                    StringUtils.hasText(effectiveRawgApiKey),
+                    StringUtils.hasText(game.getName())
+            );
+            return null;
+        }
+
+        RawgMetadata metadataWithDates = callRawgSearch(game, true);
+        RawgMetadata enrichedWithDates = enrichWithDetailIfNeeded(metadataWithDates);
+        if (hasUsefulMetadata(enrichedWithDates)) {
+            return enrichedWithDates;
+        }
+
+        RawgMetadata metadataWithoutDates = callRawgSearch(game, false);
+        RawgMetadata enrichedWithoutDates = enrichWithDetailIfNeeded(metadataWithoutDates);
+
+        return mergeMetadata(enrichedWithDates, enrichedWithoutDates);
+    }
+
+    private RawgMetadata enrichWithDetailIfNeeded(RawgMetadata metadata) {
+        if (metadata == null) {
+            return null;
+        }
+
+        if (StringUtils.hasText(metadata.description()) || metadata.rawgId() == null) {
+            return metadata;
+        }
+
+        log.debug("RAWG detail fallback requested rawgId={} because description is missing", metadata.rawgId());
+
+        RawgMetadata detailedMetadata = callRawgGameDetails(metadata.rawgId());
+        return mergeMetadata(metadata, detailedMetadata);
+    }
+
+    private boolean hasUsefulMetadata(RawgMetadata metadata) {
+        return metadata != null
+                && (StringUtils.hasText(metadata.imageUrl()) || StringUtils.hasText(metadata.description()));
+    }
+
+    private RawgMetadata mergeMetadata(RawgMetadata primary, RawgMetadata fallback) {
+        if (primary == null) {
+            return fallback;
+        }
+
+        if (fallback == null) {
+            return primary;
+        }
+
+        Long rawgId = primary.rawgId() != null ? primary.rawgId() : fallback.rawgId();
+        String imageUrl = StringUtils.hasText(primary.imageUrl()) ? primary.imageUrl() : fallback.imageUrl();
+        String description = StringUtils.hasText(primary.description()) ? primary.description() : fallback.description();
+
+        return new RawgMetadata(rawgId, imageUrl, description);
+    }
+
+    private RawgMetadata callRawgSearch(Game game, boolean includeDates) {
         try {
             enforceRawgRateLimit();
 
@@ -171,8 +405,25 @@ public class RawgGameImageResolver implements GameImageResolver {
                 return null;
             }
 
-            String imageUrl = results.get(0).path("background_image").asText(null);
-            return StringUtils.hasText(imageUrl) ? imageUrl : null;
+            JsonNode firstResult = results.get(0);
+            Long rawgId = firstResult.path("id").isNumber() ? firstResult.path("id").asLong() : null;
+            String imageUrl = firstResult.path("background_image").asText(null);
+            String description = extractDescription(firstResult);
+
+                log.debug(
+                    "RAWG search result gameId={} includeDates={} rawgId={} hasImage={} hasDescription={}",
+                    game.getId(),
+                    includeDates,
+                    rawgId,
+                    StringUtils.hasText(imageUrl),
+                    StringUtils.hasText(description)
+                );
+
+            return new RawgMetadata(
+                    rawgId,
+                    StringUtils.hasText(imageUrl) ? imageUrl : null,
+                    StringUtils.hasText(description) ? description : null
+            );
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             log.warn("RAWG lookup interrupted for gameId={} name={}", game.getId(), game.getName(), ex);
@@ -181,6 +432,91 @@ public class RawgGameImageResolver implements GameImageResolver {
             log.warn("RAWG lookup failed for gameId={} name={}", game.getId(), game.getName(), ex);
             return null;
         }
+    }
+
+    private RawgMetadata callRawgGameDetails(Long rawgId) {
+        try {
+            enforceRawgRateLimit();
+
+            String requestUrl = rawgBaseUrl + "/games/" + rawgId + "?key=" + effectiveRawgApiKey;
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(requestUrl))
+                    .header("User-Agent", RAWG_USER_AGENT)
+                    .timeout(Duration.ofMillis(rawgTimeoutMs))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 429) {
+                log.warn("RAWG rate limit reached for rawgId={}", rawgId);
+                return null;
+            }
+
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("RAWG detail request failed for rawgId={} status={}", rawgId, response.statusCode());
+                return null;
+            }
+
+            JsonNode detail = objectMapper.readTree(response.body());
+            String imageUrl = detail.path("background_image").asText(null);
+            String description = extractDescription(detail);
+
+                log.debug(
+                    "RAWG detail result rawgId={} hasImage={} hasDescription={}",
+                    rawgId,
+                    StringUtils.hasText(imageUrl),
+                    StringUtils.hasText(description)
+                );
+
+            return new RawgMetadata(
+                    rawgId,
+                    StringUtils.hasText(imageUrl) ? imageUrl : null,
+                    StringUtils.hasText(description) ? description : null
+            );
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn("RAWG detail lookup interrupted for rawgId={}", rawgId, ex);
+            return null;
+        } catch (Exception ex) {
+            log.warn("RAWG detail lookup failed for rawgId={}", rawgId, ex);
+            return null;
+        }
+    }
+
+    private String extractDescription(JsonNode node) {
+        String descriptionRaw = node.path("description_raw").asText(null);
+        if (StringUtils.hasText(descriptionRaw)) {
+            return normalizeText(descriptionRaw);
+        }
+
+        String htmlDescription = node.path("description").asText(null);
+        if (!StringUtils.hasText(htmlDescription)) {
+            return null;
+        }
+
+        return stripHtml(htmlDescription);
+    }
+
+    private String stripHtml(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        String withoutTags = value.replaceAll("<[^>]+>", " ");
+        return normalizeText(withoutTags);
+    }
+
+    private String normalizeText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        return StringUtils.hasText(normalized) ? normalized : null;
+    }
+
+    private record RawgMetadata(Long rawgId, String imageUrl, String description) {
     }
 
     private void enforceRawgRateLimit() throws InterruptedException {

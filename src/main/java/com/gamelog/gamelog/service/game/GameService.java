@@ -1,5 +1,6 @@
 package com.gamelog.gamelog.service.game;
 
+import com.gamelog.gamelog.controller.dto.GameDetailResponse;
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
 import com.gamelog.gamelog.model.EnumUser.GamePlatform;
 import com.gamelog.gamelog.model.Game;
@@ -15,6 +16,8 @@ public interface GameService {
     Game save(Game game);
 
     Optional<Game> get(Long id);
+
+    Optional<GameDetailResponse> getSummaryBySlug(String slug);
 
     void delete(Game game);
 

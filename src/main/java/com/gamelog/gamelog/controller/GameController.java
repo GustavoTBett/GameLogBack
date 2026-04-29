@@ -1,5 +1,6 @@
 package com.gamelog.gamelog.controller;
 
+import com.gamelog.gamelog.controller.dto.GameDetailResponse;
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
 import com.gamelog.gamelog.controller.dto.PagedResponse;
 import com.gamelog.gamelog.model.EnumUser.GamePlatform;
@@ -54,6 +55,13 @@ public class GameController {
     @GetMapping("/{id}")
     public ResponseEntity<Game> getById(@PathVariable Long id) {
         return gameService.get(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<GameDetailResponse> getBySlug(@PathVariable String slug) {
+        return gameService.getSummaryBySlug(slug)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

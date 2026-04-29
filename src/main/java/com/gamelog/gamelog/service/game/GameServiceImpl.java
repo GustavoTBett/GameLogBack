@@ -1,9 +1,12 @@
 package com.gamelog.gamelog.service.game;
 
+import com.gamelog.gamelog.controller.dto.GameDetailResponse;
+import com.gamelog.gamelog.controller.dto.GameReviewResponse;
 import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.model.EnumUser.GamePlatform;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.GamePlatformMapping;
+import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.repository.GamePlatformMappingRepository;
 import com.gamelog.gamelog.repository.GameRepository;
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
@@ -15,6 +18,8 @@ import com.gamelog.gamelog.service.image.GameImageResolver;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Subquery;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +41,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class GameServiceImpl implements GameService{
+
+    private static final Logger log = LoggerFactory.getLogger(GameServiceImpl.class);
 
     private final GameRepository gameRepository;
     private final GamePlatformMappingRepository gamePlatformRepository;
@@ -68,6 +75,45 @@ public class GameServiceImpl implements GameService{
     @Override
     public Optional<Game> get(Long id) {
         return gameRepository.findById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<GameDetailResponse> getSummaryBySlug(String slug) {
+        log.info("Game detail requested by slug={}", slug);
+
+        return gameRepository.findBySlug(slug)
+                .map(game -> {
+                    boolean hadDescriptionBefore = org.springframework.util.StringUtils.hasText(game.getDescription());
+                    boolean hadRawgImageBefore = org.springframework.util.StringUtils.hasText(game.getRawgImageUrl());
+                    boolean hadRawgSyncBefore = game.getImageLastCheckedAt() != null;
+
+                log.info(
+                    "Before RAWG sync slug={} gameId={} hasDescription={} hasRawgImage={} hasRawgSync={}",
+                    slug,
+                    game.getId(),
+                    hadDescriptionBefore,
+                    hadRawgImageBefore,
+                    hadRawgSyncBefore
+                );
+
+                    gameImageResolver.enrichRawgMetadataIfMissing(game);
+
+                    boolean hasDescriptionAfter = org.springframework.util.StringUtils.hasText(game.getDescription());
+                    boolean hasRawgImageAfter = org.springframework.util.StringUtils.hasText(game.getRawgImageUrl());
+                    boolean hasRawgSyncAfter = game.getImageLastCheckedAt() != null;
+
+                log.info(
+                    "After RAWG sync slug={} gameId={} hasDescription={} hasRawgImage={} hasRawgSync={}",
+                    slug,
+                    game.getId(),
+                    hasDescriptionAfter,
+                    hasRawgImageAfter,
+                    hasRawgSyncAfter
+                );
+
+                    return toDetailResponse(game);
+                });
     }
 
     @Override
@@ -195,6 +241,55 @@ public class GameServiceImpl implements GameService{
                 .toList();
     }
 
+    private GameSummaryResponse toSummaryResponse(Game game) {
+        return toSummaryResponse(
+                game,
+                Map.of(game.getId(), 0L),
+                Map.of(game.getId(), List.of()),
+                Map.of(game.getId(), List.of())
+        );
+    }
+
+    private GameDetailResponse toDetailResponse(Game game) {
+        Map<Long, Long> reviewsByGame = getReviewsByGame(List.of(game));
+        Map<Long, List<String>> genresByGame = getGenresByGame(List.of(game));
+        Map<Long, List<GamePlatform>> platformsByGame = getPlatformsByGame(List.of(game));
+
+        GameSummaryResponse summary = toSummaryResponse(game, reviewsByGame, genresByGame, platformsByGame);
+        List<GameReviewResponse> reviews = ratingRepository.findAllByGameIdOrderByCreatedAtDescIdDesc(game.getId())
+                .stream()
+                .map(this::toGameReviewResponse)
+                .toList();
+
+        return new GameDetailResponse(
+                summary.id(),
+                summary.name(),
+                summary.slug(),
+                summary.description(),
+                summary.descriptionPtBr(),
+                summary.coverUrl(),
+                summary.averageRating(),
+                summary.releaseDate(),
+                summary.developer(),
+                summary.totalReviews(),
+                summary.genres(),
+                summary.platforms(),
+                reviews
+        );
+    }
+
+    private GameReviewResponse toGameReviewResponse(Rating rating) {
+        String username = rating.getUser() != null ? rating.getUser().getUsername() : "Usuário";
+
+        return new GameReviewResponse(
+                rating.getId(),
+                rating.getScore(),
+                rating.getReview(),
+                username,
+                rating.getCreatedAt()
+        );
+    }
+
     private GameSummaryResponse toSummaryResponse(
             Game game,
             Map<Long, Long> reviewsByGame,
@@ -208,7 +303,8 @@ public class GameServiceImpl implements GameService{
                 game.getName(),
                 game.getSlug(),
                 game.getDescription(),
-            resolvedCoverUrl,
+                game.getDescriptionPtBr(),
+                resolvedCoverUrl,
                 game.getAverageRating(),
                 game.getReleaseDate(),
                 game.getDeveloper(),

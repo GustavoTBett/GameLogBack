@@ -1,64 +1,54 @@
 # Gamelog API
 
-## PT-BR
+API backend do Gamelog para autenticação, catálogo de jogos, favoritos, avaliações, recuperação de senha e integrações com serviços externos.
 
-### Visao geral
+## Visão geral
 
-O Gamelog e uma API para organizar experiencias com jogos em uma unica plataforma.
+O projeto centraliza o fluxo de descoberta e acompanhamento de jogos em uma API Spring Boot. Hoje o backend já entrega:
 
-Ela permite que usuarios:
-- criem conta e facam login;
-- registrem jogos favoritos;
-- avaliem jogos com nota e comentario;
-- consultem informacoes de jogos, generos e relacionamentos jogo-genero.
-
-### Problema que o projeto resolve
-
-Muitos jogadores usam varias plataformas separadas para descobrir, avaliar e acompanhar jogos.
-O Gamelog centraliza esse fluxo para facilitar:
-- historico pessoal de jogos e avaliacoes;
-- organizacao por favoritos;
-- futura recomendacao personalizada baseada no perfil do usuario.
-
-### Status atual do projeto
-
-Implementado hoje:
-- autenticacao por sessao com Spring Security;
-- gerenciamento de usuarios;
+- autenticação por sessão com CSRF;
+- cadastro e gestão de usuários;
+- consulta de jogos, gêneros e relacionamento jogo-gênero;
 - favoritos;
-- avaliacoes;
-- consulta de jogos, generos e jogo-genero.
+- avaliações com nota e comentário;
+- recuperação e redefinição de senha por e-mail;
+- integrações com RAWG, serviço de tradução, envio de e-mail e base para OpenAI.
 
-Roadmap (planejado):
-- recomendacoes com IA com base no historico do usuario;
-- descoberta de jogos menos populares e independentes;
-- endpoints dedicados para sugestoes personalizadas.
-
-Observacao: o projeto ja possui dependencia de Spring AI/OpenAI no build, mas os endpoints de recomendacao ainda nao estao expostos.
-
-### Stack
+## Stack
 
 - Java 21
 - Spring Boot 4.0.3
 - Spring Web MVC
-- Spring Security (sessao + CSRF)
+- Spring Security
 - Spring Data JPA
+- Spring Validation
 - Liquibase
+- Spring Mail
+- Spring AI 2.0.0-M2
 - PostgreSQL
 - Maven Wrapper
+- JaCoCo
 
-### Arquitetura
+## Estrutura do projeto
 
-Padrao em camadas:
-- controller: entrada HTTP
-- service: regras de negocio
-- repository: acesso a dados
-- model: entidades JPA
-- dto: contratos de request/response
-- validation: validacoes customizadas
-- exception: tratamento padronizado de erros
+O código segue uma arquitetura em camadas:
 
-### Como rodar localmente
+- controllers em `src/main/java/com/gamelog/gamelog/controller`
+- DTOs em `src/main/java/com/gamelog/gamelog/controller/dto`
+- services em `src/main/java/com/gamelog/gamelog/service`
+- repositories em `src/main/java/com/gamelog/gamelog/repository`
+- entities em `src/main/java/com/gamelog/gamelog/model`
+- validações em `src/main/java/com/gamelog/gamelog/validation`
+- exceções em `src/main/java/com/gamelog/gamelog/exception`
+
+Também existem recursos e utilitários importantes em:
+
+- `src/main/resources/liquibase` para migrations
+- `scripts/generate_games_seed_sql.py` para geração de seed
+- `Video Games Data.csv` como base de dados de jogos
+- `banco/` para material visual do schema
+
+## Como rodar localmente
 
 1. Suba o banco com Docker Compose:
 
@@ -72,329 +62,136 @@ docker-compose up -d
 ./mvnw spring-boot:run
 ```
 
-No Windows (PowerShell):
+No Windows:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-API padrao: `http://localhost:8080`
+A API sobe por padrão em `http://localhost:8080`.
 
-### Variaveis e configuracao
+## Configuração
 
-Em `src/main/resources/application.properties`:
-- banco: `jdbc:postgresql://localhost:5432/postgres`
-- usuario/senha padrao: `postgres/postgres`
-- cookie de sessao: `GAMELOG_SESSION`
+As configurações principais ficam em `src/main/resources/application.properties`.
 
-Variaveis opcionais:
-- `APP_SECURITY_ALLOWED_ORIGINS`
-- `APP_SECURITY_COOKIE_SECURE`
-- `OPENAI_API_KEY` (para evolucoes com IA)
+### Banco de dados
 
-### Autenticacao (importante)
+- URL padrão: `jdbc:postgresql://localhost:5432/postgres`
+- usuário padrão: `postgres`
+- senha padrão: `postgres`
+- migrations: `classpath:liquibase/master.xml`
 
-Esta API usa sessao HTTP + CSRF (nao JWT).
+### Sessão e segurança
+
+- cookie de sessão: `GAMELOG_SESSION`
+- timeout de sessão: `30m`
+- CSRF habilitado para requisições de escrita
+- CORS controlado por `APP_SECURITY_ALLOWED_ORIGINS`
+- cookie seguro opcional via `APP_SECURITY_COOKIE_SECURE`
+
+### E-mail e redefinição de senha
+
+- SMTP: `smtp.gmail.com:587`
+- credenciais via `MAIL_USERNAME` e `MAIL_APP_PASSWORD`
+- remetente opcional via `MAIL_FROM`
+- o link de redefinição usa `APP_FRONTEND_BASE_URL` e envia o token por query string
+
+### Integrações externas
+
+- `OPENAI_API_KEY` para recursos planejados de IA
+- `RAWG_API`, `RAWG_API_BASE_URL`, `RAWG_API_TIMEOUT_MS`, `RAWG_API_MIN_INTERVAL_MS`
+- `APP_TRANSLATION_BASE_URL`, `APP_TRANSLATION_TIMEOUT_MS`, `APP_TRANSLATION_CONNECT_TIMEOUT_MS`, `APP_TRANSLATION_RETRY_COUNT`, `APP_TRANSLATION_SOURCE_LANG`, `APP_TRANSLATION_TARGET_LANG`
+- `VGCHARTZ_BASE_URL` e `APP_IMAGE_DEFAULT_URL`
+
+### Observação importante
+
+Campos numéricos como `average_rating` e `default_rating` usam escala `numeric(3,2)` no banco. Seeds e importações devem respeitar limite de `9.99` para evitar arredondamento para `10.00`.
+
+## Autenticação
+
+Este backend usa sessão HTTP + CSRF, não JWT.
 
 Fluxo recomendado:
-1. `GET /auth/csrf` para obter token CSRF
-2. `POST /users` para criar conta
-3. `POST /auth/login` com `identifier` (email ou username) e `password`
-4. enviar cookie de sessao + header CSRF em requests de escrita
 
-### Endpoints atuais
+1. `GET /auth/csrf` para obter o token CSRF.
+2. `POST /users` para criar conta ou `POST /auth/login` para entrar.
+3. Enviar cookie de sessão e o header CSRF nas requisições de escrita.
+4. `POST /auth/logout` encerra a sessão.
 
-Autenticacao:
-- `GET /auth/csrf` (publico)
-- `POST /auth/login` (publico)
-- `POST /auth/logout` (autenticado)
-- `GET /auth/me` (autenticado)
+## Endpoints atuais
 
-Usuarios:
-- `POST /users` (publico)
-- `GET /users/{id}` (autenticado)
-- `PUT /users/{id}` (autenticado)
-- `DELETE /users/{id}` (admin)
+### Auth
 
-Jogos:
-- `GET /games/{id}` (autenticado)
-- `DELETE /games/{id}` (autenticado)
+- `GET /auth/csrf` - público
+- `POST /auth/login` - público
+- `POST /auth/logout` - autenticado
+- `GET /auth/me` - autenticado
+- `POST /auth/forgot-password` - público
+- `POST /auth/reset-password` - público
 
-Generos:
-- `GET /genres/{id}` (autenticado)
+### Users
 
-Jogo-genero:
-- `GET /game-genres/{id}` (autenticado)
+- `POST /users` - público
+- `GET /users/{id}` - autenticado
+- `PUT /users/{id}` - autenticado
+- `DELETE /users/{id}` - admin
 
-Favoritos:
-- `POST /favorites` (autenticado)
-- `GET /favorites/{id}` (autenticado)
-- `DELETE /favorites/{id}` (autenticado)
+### Games
 
-Avaliacoes:
-- `POST /ratings` (autenticado)
-- `GET /ratings/{id}` (autenticado)
-- `PUT /ratings/{id}` (autenticado)
-- `DELETE /ratings/{id}` (autenticado)
+- `GET /games/explore` - catálogo paginado com filtros
+- `GET /games/popular` - jogos populares
+- `GET /games/top-rated` - jogos mais bem avaliados
+- `GET /games/{id}` - consulta por id
+- `GET /games/slug/{slug}` - consulta por slug
+- `DELETE /games/{id}` - manutenção/admin
 
-### Exemplos de payload
+### Genres
 
-Criar usuario (`POST /users`):
+- `GET /genres` - lista de gêneros
+- `GET /genres/{id}` - consulta por id
 
-```json
-{
-  "email": "user@example.com",
-  "username": "user123",
-  "password": "StrongPass123",
-  "avatarUrl": "https://example.com/avatar.png",
-  "bio": "Meu perfil gamer"
-}
-```
+### Game-genre
 
-Login (`POST /auth/login`):
+- `GET /game-genres/{gameId}/{genreId}` - relacionamento entre jogo e gênero
 
-```json
-{
-  "identifier": "user@example.com",
-  "password": "StrongPass123"
-}
-```
+### Favorites
 
-Criar favorito (`POST /favorites`):
+- `POST /favorites`
+- `GET /favorites/{id}`
+- `DELETE /favorites/{id}`
 
-```json
-{
-  "userId": 1,
-  "gameId": 2
-}
-```
+### Ratings
 
-Criar avaliacao (`POST /ratings`):
+- `POST /ratings`
+- `GET /ratings/{id}`
+- `PUT /ratings/{id}`
+- `DELETE /ratings/{id}`
 
-```json
-{
-  "userId": 1,
-  "gameId": 2,
-  "score": 5,
-  "review": "Excelente jogo"
-}
-```
+## Seed e dados
 
-### Testes e build
+Para gerar carga inicial de jogos, o repositório inclui o CSV `Video Games Data.csv` e o script `scripts/generate_games_seed_sql.py`.
+
+Se a intenção for criar ou atualizar seeds, vale revisar também as migrations Liquibase antes de importar novos registros.
+
+## Testes e build
 
 ```bash
 ./mvnw test
 ./mvnw package
+./mvnw clean compile
 ```
 
-Windows (PowerShell):
+No Windows:
 
 ```powershell
 .\mvnw.cmd test
 .\mvnw.cmd package
+.\mvnw.cmd clean compile
 ```
 
-### Documentacao para contribuicao tecnica
+O relatório do JaCoCo é gerado em `target/site/jacoco`.
 
-Consulte `CONTRIBUTING.md` para ver como criar nova entidade, controller e demais componentes no padrao do projeto.
+## Documentação adicional
 
----
-
-## EN-US
-
-### Overview
-
-Gamelog is an API that helps users keep their gaming experience in one place.
-
-It allows users to:
-- create an account and log in;
-- store favorite games;
-- rate games with score and review;
-- query games, genres, and game-genre associations.
-
-### Problem being solved
-
-Many players rely on fragmented tools to discover, rate, and track games.
-Gamelog centralizes this process to improve:
-- personal game and rating history;
-- favorites organization;
-- future personalized recommendation flows.
-
-### Current project status
-
-Implemented now:
-- session-based authentication with Spring Security;
-- user management;
-- favorites;
-- ratings;
-- read operations for games, genres, and game-genre relations.
-
-Roadmap (planned):
-- AI recommendations based on user history;
-- better discovery for indie and less popular titles;
-- dedicated personalized recommendation endpoints.
-
-Note: the build already includes Spring AI/OpenAI dependencies, but recommendation endpoints are not exposed yet.
-
-### Stack
-
-- Java 21
-- Spring Boot 4.0.3
-- Spring Web MVC
-- Spring Security (session + CSRF)
-- Spring Data JPA
-- Liquibase
-- PostgreSQL
-- Maven Wrapper
-
-### Architecture
-
-Layered pattern:
-- controller: HTTP entrypoints
-- service: business rules
-- repository: data access
-- model: JPA entities
-- dto: request/response contracts
-- validation: custom validations
-- exception: centralized error handling
-
-### Local setup
-
-1. Start PostgreSQL with Docker Compose:
-
-```bash
-docker-compose up -d
-```
-
-2. Run API:
-
-```bash
-./mvnw spring-boot:run
-```
-
-On Windows (PowerShell):
-
-```powershell
-.\mvnw.cmd spring-boot:run
-```
-
-Default API URL: `http://localhost:8080`
-
-### Configuration and environment
-
-In `src/main/resources/application.properties`:
-- datasource: `jdbc:postgresql://localhost:5432/postgres`
-- default db credentials: `postgres/postgres`
-- session cookie name: `GAMELOG_SESSION`
-
-Optional env vars:
-- `APP_SECURITY_ALLOWED_ORIGINS`
-- `APP_SECURITY_COOKIE_SECURE`
-- `OPENAI_API_KEY` (for AI-related evolution)
-
-### Authentication (important)
-
-This API uses HTTP session + CSRF (not JWT).
-
-Recommended flow:
-1. `GET /auth/csrf` to retrieve CSRF token
-2. `POST /users` to sign up
-3. `POST /auth/login` with `identifier` (email or username) and `password`
-4. send session cookie + CSRF header in write requests
-
-### Current endpoints
-
-Authentication:
-- `GET /auth/csrf` (public)
-- `POST /auth/login` (public)
-- `POST /auth/logout` (authenticated)
-- `GET /auth/me` (authenticated)
-
-Users:
-- `POST /users` (public)
-- `GET /users/{id}` (authenticated)
-- `PUT /users/{id}` (authenticated)
-- `DELETE /users/{id}` (admin)
-
-Games:
-- `GET /games/{id}` (authenticated)
-- `DELETE /games/{id}` (authenticated)
-
-Genres:
-- `GET /genres/{id}` (authenticated)
-
-Game-genre:
-- `GET /game-genres/{id}` (authenticated)
-
-Favorites:
-- `POST /favorites` (authenticated)
-- `GET /favorites/{id}` (authenticated)
-- `DELETE /favorites/{id}` (authenticated)
-
-Ratings:
-- `POST /ratings` (authenticated)
-- `GET /ratings/{id}` (authenticated)
-- `PUT /ratings/{id}` (authenticated)
-- `DELETE /ratings/{id}` (authenticated)
-
-### Sample payloads
-
-Create user (`POST /users`):
-
-```json
-{
-  "email": "user@example.com",
-  "username": "user123",
-  "password": "StrongPass123",
-  "avatarUrl": "https://example.com/avatar.png",
-  "bio": "My gamer profile"
-}
-```
-
-Login (`POST /auth/login`):
-
-```json
-{
-  "identifier": "user@example.com",
-  "password": "StrongPass123"
-}
-```
-
-Create favorite (`POST /favorites`):
-
-```json
-{
-  "userId": 1,
-  "gameId": 2
-}
-```
-
-Create rating (`POST /ratings`):
-
-```json
-{
-  "userId": 1,
-  "gameId": 2,
-  "score": 5,
-  "review": "Excellent game"
-}
-```
-
-### Tests and build
-
-```bash
-./mvnw test
-./mvnw package
-```
-
-Windows (PowerShell):
-
-```powershell
-.\mvnw.cmd test
-.\mvnw.cmd package
-```
-
-### Developer guide
-
-Check `CONTRIBUTING.md` for the full guide on adding new entities, controllers, and other backend components.
-
+- `CONTRIBUTING.md` descreve o padrão para adicionar novas entidades, services, controllers, migrations e testes.
+- `HELP.md` reúne referências rápidas do Maven e do Spring.

@@ -8,7 +8,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Optional;
+
 public interface GameRepository extends JpaRepository<Game, Long>, JpaSpecificationExecutor<Game> {
+
+	Optional<Game> findBySlug(String slug);
 
 	@Query(
 			value = """
@@ -16,9 +20,7 @@ public interface GameRepository extends JpaRepository<Game, Long>, JpaSpecificat
 					FROM Game g
 					LEFT JOIN Rating r ON r.game = g
 					GROUP BY g
-					ORDER BY COUNT(r) DESC
-					g.averageRating DESC,
-					g.id DESC
+					ORDER BY COUNT(r) DESC, g.averageRating DESC, g.id DESC
 					""",
 			countQuery = "SELECT COUNT(g) FROM Game g"
 	)

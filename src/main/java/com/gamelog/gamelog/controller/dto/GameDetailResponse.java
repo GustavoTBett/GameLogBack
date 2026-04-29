@@ -5,7 +5,7 @@ import com.gamelog.gamelog.model.EnumUser.GamePlatform;
 import java.time.LocalDate;
 import java.util.List;
 
-public record GameSummaryResponse(
+public record GameDetailResponse(
         Long id,
         String name,
         String slug,
@@ -17,6 +17,7 @@ public record GameSummaryResponse(
         String developer,
         Long totalReviews,
         List<String> genres,
-        List<GamePlatform> platforms
+        List<GamePlatform> platforms,
+        List<GameReviewResponse> reviews
 ) {
 }

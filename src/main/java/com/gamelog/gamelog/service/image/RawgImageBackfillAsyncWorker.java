@@ -31,8 +31,10 @@ public class RawgImageBackfillAsyncWorker {
 
         int attempted = 0;
         for (Game game : gameRepository.findAllById(gameIds)) {
-            if (!StringUtils.hasText(game.getRawgImageUrl())) {
-                rawgGameImageResolver.enrichRawgImageIfMissing(game);
+            if (!StringUtils.hasText(game.getRawgImageUrl())
+                    || !StringUtils.hasText(game.getDescription())
+                    || !StringUtils.hasText(game.getDescriptionPtBr())) {
+                rawgGameImageResolver.enrichRawgMetadataIfMissing(game);
                 attempted++;
             }
         }
