@@ -13,6 +13,7 @@ public record GameSummaryResponse(
         String descriptionPtBr,
         String coverUrl,
         Double averageRating,
+        Double defaultRating,
         LocalDate releaseDate,
         String developer,
         Long totalReviews,

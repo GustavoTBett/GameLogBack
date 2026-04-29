@@ -29,7 +29,7 @@ public class Rating extends MasterEntityWAudit{
     private Game game;
 
     @Min(value = 1L, message = "O valor minimo é 1")
-    @Max(value = 5L, message = "O valor máximo é 5")
+    @Max(value = 10L, message = "O valor máximo é 10")
     @NotNull(message = "A nota é obrigatória")
     private Integer score;
 

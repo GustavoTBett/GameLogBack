@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface RatingService {
 
-    Rating validateDtoSaveAndReturnRating(RatingRequest ratingRequest);
+    Rating buildRating(RatingRequest ratingRequest, Long userId);
 
     Rating save(Rating rating);
 

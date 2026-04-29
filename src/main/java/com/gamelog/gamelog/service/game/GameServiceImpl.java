@@ -262,19 +262,20 @@ public class GameServiceImpl implements GameService{
                 .toList();
 
         return new GameDetailResponse(
-                summary.id(),
-                summary.name(),
-                summary.slug(),
-                summary.description(),
-                summary.descriptionPtBr(),
-                summary.coverUrl(),
-                summary.averageRating(),
-                summary.releaseDate(),
-                summary.developer(),
-                summary.totalReviews(),
-                summary.genres(),
-                summary.platforms(),
-                reviews
+            summary.id(),
+            summary.name(),
+            summary.slug(),
+            summary.description(),
+            summary.descriptionPtBr(),
+            summary.coverUrl(),
+            summary.averageRating(),
+            summary.defaultRating(),
+            summary.releaseDate(),
+            summary.developer(),
+            summary.totalReviews(),
+            summary.genres(),
+            summary.platforms(),
+            reviews
         );
     }
 
@@ -299,18 +300,19 @@ public class GameServiceImpl implements GameService{
         String resolvedCoverUrl = gameImageResolver.resolveAndPersistCoverUrl(game);
 
         return new GameSummaryResponse(
-                game.getId(),
-                game.getName(),
-                game.getSlug(),
-                game.getDescription(),
-                game.getDescriptionPtBr(),
-                resolvedCoverUrl,
-                game.getAverageRating(),
-                game.getReleaseDate(),
-                game.getDeveloper(),
-                reviewsByGame.getOrDefault(game.getId(), 0L),
-                genresByGame.getOrDefault(game.getId(), List.of()),
-                platformsByGame.getOrDefault(game.getId(), List.of())
+            game.getId(),
+            game.getName(),
+            game.getSlug(),
+            game.getDescription(),
+            game.getDescriptionPtBr(),
+            resolvedCoverUrl,
+            game.getAverageRating(),
+            game.getDefaultRating(),
+            game.getReleaseDate(),
+            game.getDeveloper(),
+            reviewsByGame.getOrDefault(game.getId(), 0L),
+            genresByGame.getOrDefault(game.getId(), List.of()),
+            platformsByGame.getOrDefault(game.getId(), List.of())
         );
     }
 

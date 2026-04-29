@@ -38,7 +38,7 @@ class RatingControllerTest {
 
     @Test
     void createShouldReturnForbiddenWithoutAuthentication() throws Exception {
-        RatingRequest request = new RatingRequest(1L, 2L, 5, "great");
+        RatingRequest request = new RatingRequest(2L, 10, "great");
 
         mockMvc.perform(post("/ratings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -50,12 +50,12 @@ class RatingControllerTest {
 
     @Test
     void createShouldReturnCreatedWhenOwnerAuthenticated() throws Exception {
-        RatingRequest request = new RatingRequest(1L, 2L, 5, "great");
+        RatingRequest request = new RatingRequest(2L, 10, "great");
         Rating rating = mock(Rating.class);
         Rating saved = mock(Rating.class);
         when(saved.getId()).thenReturn(55L);
 
-        when(ratingService.validateDtoSaveAndReturnRating(any(RatingRequest.class))).thenReturn(rating);
+        when(ratingService.buildRating(any(RatingRequest.class), eq(1L))).thenReturn(rating);
         when(ratingService.save(rating)).thenReturn(saved);
 
         mockMvc.perform(post("/ratings")
@@ -65,25 +65,8 @@ class RatingControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", "http://localhost/ratings/55"));
 
-        verify(ratingService).validateDtoSaveAndReturnRating(any(RatingRequest.class));
+        verify(ratingService).buildRating(any(RatingRequest.class), eq(1L));
         verify(ratingService).save(rating);
-    }
-
-    @Test
-    void createShouldAllowAdminActingForAnotherUser() throws Exception {
-        RatingRequest request = new RatingRequest(99L, 2L, 5, "great");
-        Rating rating = mock(Rating.class);
-        Rating saved = mock(Rating.class);
-        when(saved.getId()).thenReturn(77L);
-
-        when(ratingService.validateDtoSaveAndReturnRating(any(RatingRequest.class))).thenReturn(rating);
-        when(ratingService.save(rating)).thenReturn(saved);
-
-        mockMvc.perform(post("/ratings")
-                        .with(authentication(1L, "ADMIN"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
     }
 
     @Test
