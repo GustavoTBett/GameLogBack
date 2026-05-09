@@ -1,7 +1,7 @@
 package com.gamelog.gamelog.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.gamelog.gamelog.model.EnumUser.UserRole;
+import com.gamelog.gamelog.model.enums.UserRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -40,6 +40,13 @@ public class User extends MasterEntityWAudit {
     private String avatarUrl;
 
     private String bio;
+
+    @Column(name = "google_sub", unique = true)
+    private String googleSub;
+
+    @Column(name = "google_email_verified", nullable = false)
+    @Builder.Default
+    private Boolean googleEmailVerified = false;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<UserPlatformMapping> platforms;

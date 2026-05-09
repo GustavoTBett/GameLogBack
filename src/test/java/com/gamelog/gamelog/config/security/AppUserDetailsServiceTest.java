@@ -1,6 +1,6 @@
 package com.gamelog.gamelog.config.security;
 
-import com.gamelog.gamelog.model.EnumUser.UserRole;
+import com.gamelog.gamelog.model.enums.UserRole;
 import com.gamelog.gamelog.model.User;
 import com.gamelog.gamelog.repository.UserRepository;
 import org.junit.jupiter.api.Test;

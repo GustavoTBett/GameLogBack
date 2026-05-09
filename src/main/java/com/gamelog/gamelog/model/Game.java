@@ -1,6 +1,6 @@
 package com.gamelog.gamelog.model;
 
-import com.gamelog.gamelog.model.EnumUser.ImageSource;
+import com.gamelog.gamelog.model.enums.ImageSource;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

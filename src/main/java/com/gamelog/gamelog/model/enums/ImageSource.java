@@ -1,4 +1,4 @@
-package com.gamelog.gamelog.model.EnumUser;
+package com.gamelog.gamelog.model.enums;
 
 public enum ImageSource {
     RAWG,

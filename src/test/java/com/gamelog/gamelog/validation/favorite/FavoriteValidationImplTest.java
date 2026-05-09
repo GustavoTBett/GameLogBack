@@ -3,7 +3,7 @@ package com.gamelog.gamelog.validation.favorite;
 import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.exception.favorite.AlreadyExistFavoriteWithUserAndGame;
 import com.gamelog.gamelog.model.Favorite;
-import com.gamelog.gamelog.service.favorite.FavoriteService;
+import com.gamelog.gamelog.repository.FavoriteRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 class FavoriteValidationImplTest {
 
     @Mock
-    private FavoriteService favoriteService;
+    private FavoriteRepository favoriteRepository;
 
     @InjectMocks
     private FavoriteValidationImpl favoriteValidation;
@@ -34,12 +34,16 @@ class FavoriteValidationImplTest {
     void validateUniqueUserGameShouldThrowWhenDifferentFavoriteExists() {
         Favorite requestFavorite = org.mockito.Mockito.mock(Favorite.class);
         Favorite existingFavorite = org.mockito.Mockito.mock(Favorite.class);
+        com.gamelog.gamelog.model.User user = org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class);
+        com.gamelog.gamelog.model.Game game = org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class);
 
-        when(requestFavorite.getUser()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class));
-        when(requestFavorite.getGame()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class));
+        when(requestFavorite.getUser()).thenReturn(user);
+        when(requestFavorite.getGame()).thenReturn(game);
+        when(user.getId()).thenReturn(10L);
+        when(game.getId()).thenReturn(20L);
         when(requestFavorite.getId()).thenReturn(1L);
         when(existingFavorite.getId()).thenReturn(2L);
-        when(favoriteService.getByUserAndGame(requestFavorite.getUser(), requestFavorite.getGame()))
+        when(favoriteRepository.findFirstByUserIdAndGameId(10L, 20L))
                 .thenReturn(Optional.of(existingFavorite));
 
         assertThrows(AlreadyExistFavoriteWithUserAndGame.class, () -> favoriteValidation.validateUniqueUserGame(requestFavorite));
@@ -48,9 +52,13 @@ class FavoriteValidationImplTest {
     @Test
     void validateUniqueUserGameShouldPassWhenNoExistingFavorite() {
         Favorite requestFavorite = org.mockito.Mockito.mock(Favorite.class);
-        when(requestFavorite.getUser()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class));
-        when(requestFavorite.getGame()).thenReturn(org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class));
-        when(favoriteService.getByUserAndGame(requestFavorite.getUser(), requestFavorite.getGame()))
+        com.gamelog.gamelog.model.User user = org.mockito.Mockito.mock(com.gamelog.gamelog.model.User.class);
+        com.gamelog.gamelog.model.Game game = org.mockito.Mockito.mock(com.gamelog.gamelog.model.Game.class);
+        when(requestFavorite.getUser()).thenReturn(user);
+        when(requestFavorite.getGame()).thenReturn(game);
+        when(user.getId()).thenReturn(10L);
+        when(game.getId()).thenReturn(20L);
+        when(favoriteRepository.findFirstByUserIdAndGameId(10L, 20L))
                 .thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> favoriteValidation.validateUniqueUserGame(requestFavorite));

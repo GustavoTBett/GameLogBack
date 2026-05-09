@@ -3,7 +3,8 @@ package com.gamelog.gamelog.service.game;
 import com.gamelog.gamelog.controller.dto.GameDetailResponse;
 import com.gamelog.gamelog.controller.dto.GameReviewResponse;
 import com.gamelog.gamelog.exception.EntityCannotBeNull;
-import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+import com.gamelog.gamelog.model.enums.GamePlatform;
+import com.gamelog.gamelog.model.enums.RatingVoteType;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.GamePlatformMapping;
 import com.gamelog.gamelog.model.Rating;
@@ -13,13 +14,18 @@ import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
 import com.gamelog.gamelog.model.GameGenre;
 import com.gamelog.gamelog.repository.GameGenreRepository;
 import com.gamelog.gamelog.repository.RatingRepository;
+import com.gamelog.gamelog.service.ratingvote.RatingVoteService;
+import com.gamelog.gamelog.service.ratingvote.RatingVoteStats;
 import com.gamelog.gamelog.service.image.RawgImageBackfillService;
 import com.gamelog.gamelog.service.image.GameImageResolver;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Subquery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +55,8 @@ public class GameServiceImpl implements GameService{
     private final GamePlatformMappingRepository gamePlatformRepository;
     private final GameGenreRepository gameGenreRepository;
     private final RatingRepository ratingRepository;
+    @Lazy
+    private final RatingVoteService ratingVoteService;
     private final GameImageResolver gameImageResolver;
     private final RawgImageBackfillService rawgImageBackfillService;
 
@@ -56,6 +65,7 @@ public class GameServiceImpl implements GameService{
             GamePlatformMappingRepository gamePlatformRepository,
             GameGenreRepository gameGenreRepository,
             RatingRepository ratingRepository,
+            RatingVoteService ratingVoteService,
             GameImageResolver gameImageResolver,
             RawgImageBackfillService rawgImageBackfillService
     ) {
@@ -63,6 +73,7 @@ public class GameServiceImpl implements GameService{
         this.gamePlatformRepository = gamePlatformRepository;
         this.gameGenreRepository = gameGenreRepository;
         this.ratingRepository = ratingRepository;
+        this.ratingVoteService = ratingVoteService;
         this.gameImageResolver = gameImageResolver;
         this.rawgImageBackfillService = rawgImageBackfillService;
     }
@@ -79,7 +90,7 @@ public class GameServiceImpl implements GameService{
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<GameDetailResponse> getSummaryBySlug(String slug) {
+    public Optional<GameDetailResponse> getSummaryBySlug(String slug, Long currentUserId) {
         log.info("Game detail requested by slug={}", slug);
 
         return gameRepository.findBySlug(slug)
@@ -112,7 +123,7 @@ public class GameServiceImpl implements GameService{
                     hasRawgSyncAfter
                 );
 
-                    return toDetailResponse(game);
+                    return toDetailResponse(game, currentUserId);
                 });
     }
 
@@ -146,14 +157,20 @@ public class GameServiceImpl implements GameService{
 
     @Override
     @Transactional(readOnly = true)
-    public Page<GameSummaryResponse> explore(int page, int size, Long genreId, GamePlatform platform, Double minRating) {
+    public Page<GameSummaryResponse> explore(int page, int size, Long genreId, GamePlatform platform, Double minRating, String q) {
         Sort sort = Sort.by(Sort.Order.desc("averageRating"), Sort.Order.asc("name"));
         Pageable pageable = PageRequest.of(page, size, sort);
 
         Specification<Game> specification = null;
+
+        if (q != null && !q.isBlank()) {
+            specification = Specification.where(searchSpec(q));
+        }
         
         if (minRating != null) {
-            specification = Specification.where(minRatingSpec(minRating));
+            specification = specification == null
+                    ? Specification.where(minRatingSpec(minRating))
+                    : specification.and(minRatingSpec(minRating));
         }
         
         if (platform != null) {
@@ -181,6 +198,12 @@ public class GameServiceImpl implements GameService{
         
         List<GameSummaryResponse> summaries = mapGames(gamesPage.getContent());
         return new PageImpl<>(summaries, pageable, gamesPage.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GameSummaryResponse> summarize(List<Game> games) {
+        return mapGames(games);
     }
 
     @Override
@@ -225,6 +248,28 @@ public class GameServiceImpl implements GameService{
         };
     }
 
+    private Specification<Game> searchSpec(String queryText) {
+        return (root, query, cb) -> {
+            String normalizedQuery = "%" + queryText.toLowerCase().trim() + "%";
+
+            Predicate nameMatches = cb.like(cb.lower(cb.coalesce(root.get("name"), "")), normalizedQuery);
+            Predicate slugMatches = cb.like(cb.lower(cb.coalesce(root.get("slug"), "")), normalizedQuery);
+            Predicate descriptionMatches = cb.like(cb.lower(cb.coalesce(root.get("description"), "")), normalizedQuery);
+            Predicate descriptionPtBrMatches = cb.like(cb.lower(cb.coalesce(root.get("descriptionPtBr"), "")), normalizedQuery);
+            Predicate developerMatches = cb.like(cb.lower(cb.coalesce(root.get("developer"), "")), normalizedQuery);
+            Predicate publisherMatches = cb.like(cb.lower(cb.coalesce(root.get("publisher"), "")), normalizedQuery);
+
+            return cb.or(
+                    nameMatches,
+                    slugMatches,
+                    descriptionMatches,
+                    descriptionPtBrMatches,
+                    developerMatches,
+                    publisherMatches
+            );
+        };
+    }
+
     private List<GameSummaryResponse> mapGames(List<Game> games) {
         if (games.isEmpty()) {
             return List.of();
@@ -250,16 +295,33 @@ public class GameServiceImpl implements GameService{
         );
     }
 
-    private GameDetailResponse toDetailResponse(Game game) {
+        private GameDetailResponse toDetailResponse(Game game, Long currentUserId) {
         Map<Long, Long> reviewsByGame = getReviewsByGame(List.of(game));
         Map<Long, List<String>> genresByGame = getGenresByGame(List.of(game));
         Map<Long, List<GamePlatform>> platformsByGame = getPlatformsByGame(List.of(game));
 
         GameSummaryResponse summary = toSummaryResponse(game, reviewsByGame, genresByGame, platformsByGame);
-        List<GameReviewResponse> reviews = ratingRepository.findAllByGameIdOrderByCreatedAtDescIdDesc(game.getId())
-                .stream()
-                .map(this::toGameReviewResponse)
-                .toList();
+        List<Rating> ratings = ratingRepository.findAllByGameIdOrderByCreatedAtDescIdDesc(game.getId());
+        Map<Long, RatingVoteStats> voteStatsByRating = ratingVoteService.getVoteStatsByRatingIds(
+            ratings.stream().map(Rating::getId).collect(Collectors.toSet())
+        );
+        Map<Long, RatingVoteType> userVotesByRating = ratingVoteService.getUserVotesByRatingIds(
+            ratings.stream().map(Rating::getId).collect(Collectors.toSet()),
+            currentUserId
+        );
+
+        List<GameReviewResponse> reviews = ratings.stream()
+            .map(rating -> toGameReviewResponse(
+                rating,
+                voteStatsByRating.getOrDefault(rating.getId(), RatingVoteStats.empty()),
+                userVotesByRating.get(rating.getId())
+            ))
+            .sorted(Comparator
+                .comparingLong((GameReviewResponse review) -> review.upvoteCount() - review.downvoteCount())
+                .reversed()
+                .thenComparing(GameReviewResponse::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(GameReviewResponse::id, Comparator.reverseOrder()))
+            .toList();
 
         return new GameDetailResponse(
             summary.id(),
@@ -279,7 +341,11 @@ public class GameServiceImpl implements GameService{
         );
     }
 
-    private GameReviewResponse toGameReviewResponse(Rating rating) {
+    private GameReviewResponse toGameReviewResponse(
+            Rating rating,
+            RatingVoteStats voteStats,
+            RatingVoteType userVote
+    ) {
         String username = rating.getUser() != null ? rating.getUser().getUsername() : "Usuário";
 
         return new GameReviewResponse(
@@ -287,7 +353,11 @@ public class GameServiceImpl implements GameService{
                 rating.getScore(),
                 rating.getReview(),
                 username,
-                rating.getCreatedAt()
+                rating.getCreatedAt(),
+                rating.getUpdatedAt(),
+                voteStats.upvoteCount(),
+                voteStats.downvoteCount(),
+                userVote != null ? userVote.name() : null
         );
     }
 
