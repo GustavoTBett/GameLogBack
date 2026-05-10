@@ -66,6 +66,9 @@ services:
     volumes:
       - gamelog-postgres-data:/var/lib/postgresql/data
 
+    ports:
+      - "${TAILSCALE_IP}:5432:5432"
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
