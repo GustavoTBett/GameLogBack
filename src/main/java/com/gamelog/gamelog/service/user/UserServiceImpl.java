@@ -46,6 +46,10 @@ public class UserServiceImpl implements UserService{
             user.setRole(UserRole.USER);
         }
 
+        if (user.getGoogleEmailVerified() == null) {
+            user.setGoogleEmailVerified(false);
+        }
+
         if (user.getPlatforms() != null) {
             user.setPlatforms(null);
         }
