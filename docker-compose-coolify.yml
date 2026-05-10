@@ -1,0 +1,76 @@
+services:
+  gamelog-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gamelog-api
+    restart: unless-stopped
+
+    environment:
+      SPRING_APPLICATION_NAME: gamelog
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
+      SPRING_LIQUIBASE_CHANGE_LOG: classpath:liquibase/master.xml
+
+      APP_SECURITY_ALLOWED_ORIGINS: ${APP_SECURITY_ALLOWED_ORIGINS}
+      APP_FRONTEND_BASE_URL: ${APP_FRONTEND_BASE_URL}
+      APP_SECURITY_COOKIE_SECURE: ${APP_SECURITY_COOKIE_SECURE:-true}
+
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_APP_PASSWORD: ${MAIL_APP_PASSWORD}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      AI_GEMINI_API_KEY: ${AI_GEMINI_API_KEY}
+      AI_GEMINI_MODEL: ${AI_GEMINI_MODEL:-gemini-3.1-flash-lite-preview}
+
+      RAWG_API: ${RAWG_API}
+      RAWG_API_BASE_URL: ${RAWG_API_BASE_URL:-https://api.rawg.io/api}
+      RAWG_API_TIMEOUT_MS: ${RAWG_API_TIMEOUT_MS:-5000}
+      RAWG_API_MIN_INTERVAL_MS: ${RAWG_API_MIN_INTERVAL_MS:-3500}
+
+      APP_TRANSLATION_BASE_URL: ${APP_TRANSLATION_BASE_URL}
+      APP_TRANSLATION_TIMEOUT_MS: ${APP_TRANSLATION_TIMEOUT_MS:-15000}
+      APP_TRANSLATION_CONNECT_TIMEOUT_MS: ${APP_TRANSLATION_CONNECT_TIMEOUT_MS:-5000}
+      APP_TRANSLATION_RETRY_COUNT: ${APP_TRANSLATION_RETRY_COUNT:-1}
+      APP_TRANSLATION_SOURCE_LANG: ${APP_TRANSLATION_SOURCE_LANG:-en}
+      APP_TRANSLATION_TARGET_LANG: ${APP_TRANSLATION_TARGET_LANG:-pt}
+
+      VGCHARTZ_BASE_URL: ${VGCHARTZ_BASE_URL:-https://www.vgchartz.com}
+      APP_IMAGE_DEFAULT_URL: ${APP_IMAGE_DEFAULT_URL:-https://www.vgchartz.com/games/boxart/default.jpg}
+
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    expose:
+      - "8080"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: gamelog-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - gamelog-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  gamelog-postgres-data:
