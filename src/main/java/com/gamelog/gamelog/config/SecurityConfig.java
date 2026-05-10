@@ -22,6 +22,7 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -54,7 +55,7 @@ public class SecurityConfig {
     ) throws Exception {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.csrfTokenRepository(cookieCsrfConfig.csrfTokenRepository()))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository()))
                 .securityContext(security -> security.securityContextRepository(securityContextRepository))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
@@ -135,6 +136,18 @@ public class SecurityConfig {
 
     private boolean isLocalProfileActive() {
         return List.of(environment.getActiveProfiles()).contains("local");
+    }
+
+    @Bean
+    public CsrfTokenRepository csrfTokenRepository() {
+        CookieCsrfTokenRepository repo = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repo.setCookieName("XSRF-TOKEN");
+        repo.setHeaderName("X-XSRF-TOKEN");
+        repo.setCookiePath("/");
+        repo.setCookieCustomizer(cookie -> cookie
+                .sameSite("None")
+                .secure(true));
+        return repo;
     }
 }
 
