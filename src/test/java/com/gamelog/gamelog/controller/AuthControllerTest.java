@@ -1,8 +1,8 @@
 package com.gamelog.gamelog.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gamelog.gamelog.config.security.AppUserPrincipal;
 import com.gamelog.gamelog.service.auth.PasswordResetService;
+import com.gamelog.gamelog.service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -25,17 +26,17 @@ class AuthControllerTest {
     private AuthenticationManager authenticationManager;
     private SecurityContextRepository securityContextRepository;
     private PasswordResetService passwordResetService;
-    private ObjectMapper objectMapper;
+    private UserService userService;
 
     @BeforeEach
     void setUp() {
         authenticationManager = mock(AuthenticationManager.class);
         securityContextRepository = mock(SecurityContextRepository.class);
         passwordResetService = mock(PasswordResetService.class);
+        userService = mock(UserService.class);
         mockMvc = MockMvcBuilders.standaloneSetup(
-                new AuthController(authenticationManager, securityContextRepository, passwordResetService)
+                new AuthController(authenticationManager, securityContextRepository, passwordResetService, userService)
         ).build();
-        objectMapper = new ObjectMapper();
     }
 
     @Test
@@ -60,6 +61,13 @@ class AuthControllerTest {
 
         verify(authenticationManager).authenticate(any());
         verify(securityContextRepository).saveContext(any(), any(), any());
+    }
+
+    @Test
+    void googleLoginShouldRedirectToSpringOauthEndpoint() throws Exception {
+        mockMvc.perform(get("/auth/google"))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location", "/oauth2/authorization/google"));
     }
 
     @Test

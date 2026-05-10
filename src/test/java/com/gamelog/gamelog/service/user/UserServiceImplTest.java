@@ -1,8 +1,11 @@
 package com.gamelog.gamelog.service.user;
 
-import com.gamelog.gamelog.model.EnumUser.UserRole;
+import com.gamelog.gamelog.controller.dto.UserProfileUpdateRequest;
+import com.gamelog.gamelog.model.enums.UserRole;
 import com.gamelog.gamelog.model.User;
 import com.gamelog.gamelog.model.UserPlatformMapping;
+import com.gamelog.gamelog.model.enums.GamePlatform;
+import com.gamelog.gamelog.repository.UserPlatformMappingRepository;
 import com.gamelog.gamelog.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,9 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,6 +28,9 @@ class UserServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private UserPlatformMappingRepository userPlatformMappingRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -95,6 +103,44 @@ class UserServiceImplTest {
         assertSame(user, result.get());
         verify(userRepository).findByEmailIgnoreCase("player");
         verify(userRepository).findByUsernameIgnoreCase("player");
+    }
+
+    @Test
+    void updateProfileShouldNormalizeBasicFieldsAndReplacePlatforms() {
+        User user = User.builder()
+                .email("old@mail.com")
+                .username("old")
+                .password("encoded")
+                .role(UserRole.USER)
+                .build();
+        ReflectionTestUtils.setField(user, "id", 3L);
+
+        UserPlatformMapping oldPlatform = UserPlatformMapping.builder()
+                .user(user)
+                .platform(GamePlatform.PC)
+                .build();
+
+        UserProfileUpdateRequest request = new UserProfileUpdateRequest(
+                "  newPlayer  ",
+                "  NEW@MAIL.COM ",
+                " https://example.com/avatar.png ",
+                " Bio nova ",
+                Set.of(GamePlatform.PLAYSTATION, GamePlatform.NINTENDO)
+        );
+
+        when(userRepository.findById(3L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+        when(userPlatformMappingRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(3L))
+                .thenReturn(List.of(oldPlatform));
+
+        User updated = userService.updateProfile(3L, request);
+
+        assertEquals("new@mail.com", updated.getEmail());
+        assertEquals("newPlayer", updated.getUsername());
+        assertEquals("https://example.com/avatar.png", updated.getAvatarUrl());
+        assertEquals("Bio nova", updated.getBio());
+        verify(userPlatformMappingRepository).deleteAll(List.of(oldPlatform));
+        verify(userPlatformMappingRepository, times(2)).save(any(UserPlatformMapping.class));
     }
 
     @Test

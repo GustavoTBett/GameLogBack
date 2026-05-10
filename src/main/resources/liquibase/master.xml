@@ -6,5 +6,6 @@
 
     <include file="liquibase/changelogs/GLBACK-001/changelog.xml"/>
     <include file="liquibase/changelogs/GLBACK-002/changelog.xml"/>
+    <include file="liquibase/changelogs/GLBACK-003/changelog.xml"/>
 
 </databaseChangeLog>

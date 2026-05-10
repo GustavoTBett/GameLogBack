@@ -2,19 +2,17 @@ package com.gamelog.gamelog.service.genre;
 
 import com.gamelog.gamelog.model.Genre;
 import com.gamelog.gamelog.repository.GenreRepository;
+import com.gamelog.gamelog.validation.genre.GenreValidation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Example;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -22,6 +20,9 @@ class GenreServiceImplTest {
 
     @Mock
     private GenreRepository genreRepository;
+
+    @Mock
+    private GenreValidation genreValidation;
 
     @InjectMocks
     private GenreServiceImpl genreService;
@@ -40,24 +41,21 @@ class GenreServiceImplTest {
         genreService.delete(genre);
 
         verify(genreRepository).save(genre);
+        verify(genreValidation).validateUniqueName(genre);
         verify(genreRepository).findById(1L);
         verify(genreRepository).findAll();
         verify(genreRepository).delete(genre);
     }
 
     @Test
-    void findByNameShouldUseExampleProbe() {
+    void findByNameShouldDelegateToRepository() {
         Genre genre = Genre.builder().id(1L).name("Action").build();
-        when(genreRepository.findOne(any())).thenReturn(Optional.of(genre));
+        when(genreRepository.findByName("Action")).thenReturn(Optional.of(genre));
 
         Optional<Genre> result = genreService.findByName("Action");
 
         assertTrue(result.isPresent());
         assertSame(genre, result.get());
-
-        ArgumentCaptor<Example<Genre>> captor = ArgumentCaptor.forClass(Example.class);
-        verify(genreRepository).findOne(captor.capture());
-        Genre probe = captor.getValue().getProbe();
-        assertEquals("Action", probe.getName());
+        verify(genreRepository).findByName("Action");
     }
 }

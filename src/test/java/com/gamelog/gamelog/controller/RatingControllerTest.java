@@ -5,6 +5,7 @@ import com.gamelog.gamelog.config.security.AppUserPrincipal;
 import com.gamelog.gamelog.controller.dto.RatingRequest;
 import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.service.rating.RatingService;
+import com.gamelog.gamelog.service.ratingvote.RatingVoteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -27,12 +28,14 @@ class RatingControllerTest {
 
     private MockMvc mockMvc;
     private RatingService ratingService;
+    private RatingVoteService ratingVoteService;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         ratingService = mock(RatingService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new RatingController(ratingService)).build();
+        ratingVoteService = mock(RatingVoteService.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(new RatingController(ratingService, ratingVoteService)).build();
         objectMapper = new ObjectMapper();
     }
 

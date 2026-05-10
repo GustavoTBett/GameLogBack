@@ -1,6 +1,6 @@
 package com.gamelog.gamelog.service.image;
 
-import com.gamelog.gamelog.model.EnumUser.ImageSource;
+import com.gamelog.gamelog.model.enums.ImageSource;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.repository.GameRepository;
 import org.slf4j.Logger;

@@ -1,6 +1,5 @@
 package com.gamelog.gamelog.model;
 
-import com.gamelog.gamelog.validation.favorite.FavoriteValidationImpl;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -12,7 +11,6 @@ import lombok.*;
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
-@EntityListeners(FavoriteValidationImpl.class)
 public class Favorite extends MasterEntityWAudit {
 
     @ManyToOne

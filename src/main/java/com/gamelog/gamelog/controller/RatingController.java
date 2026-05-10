@@ -2,9 +2,11 @@ package com.gamelog.gamelog.controller;
 
 import com.gamelog.gamelog.config.security.AppUserPrincipal;
 import com.gamelog.gamelog.controller.dto.RatingRequest;
+import com.gamelog.gamelog.controller.dto.RatingVoteRequest;
 import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.controller.dto.GameReviewResponse;
 import com.gamelog.gamelog.service.rating.RatingService;
+import com.gamelog.gamelog.service.ratingvote.RatingVoteService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -21,9 +23,11 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 public class RatingController {
 
     private final RatingService ratingService;
+    private final RatingVoteService ratingVoteService;
 
-    public RatingController(RatingService ratingService) {
+    public RatingController(RatingService ratingService, RatingVoteService ratingVoteService) {
         this.ratingService = ratingService;
+        this.ratingVoteService = ratingVoteService;
     }
 
     @PostMapping
@@ -46,7 +50,11 @@ public class RatingController {
             savedRating.getScore(),
             savedRating.getReview(),
             username,
-            savedRating.getCreatedAt()
+            savedRating.getCreatedAt(),
+            savedRating.getUpdatedAt(),
+            0L,
+            0L,
+            null
         );
 
         return ResponseEntity.created(location).body(resp);
@@ -57,7 +65,7 @@ public class RatingController {
         return ratingService.get(id)
             .map(r -> {
                 String u = r.getUser() != null ? r.getUser().getUsername() : null;
-                return ResponseEntity.ok(new GameReviewResponse(r.getId(), r.getScore(), r.getReview(), u, r.getCreatedAt()));
+                return ResponseEntity.ok(new GameReviewResponse(r.getId(), r.getScore(), r.getReview(), u, r.getCreatedAt(), r.getUpdatedAt(), 0L, 0L, null));
             })
             .orElseGet(() -> ResponseEntity.notFound().build());
         }
@@ -81,9 +89,23 @@ public class RatingController {
 
                     Rating saved = ratingService.save(existingRating);
                     String u = saved.getUser() != null ? saved.getUser().getUsername() : null;
-                    return ResponseEntity.ok(new GameReviewResponse(saved.getId(), saved.getScore(), saved.getReview(), u, saved.getCreatedAt()));
+                    return ResponseEntity.ok(new GameReviewResponse(saved.getId(), saved.getScore(), saved.getReview(), u, saved.getCreatedAt(), saved.getUpdatedAt(), 0L, 0L, null));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/vote")
+    public ResponseEntity<Void> vote(@PathVariable Long id, @Valid @RequestBody RatingVoteRequest request, Authentication authentication) {
+        Long userId = getAuthenticatedUserId(authentication);
+        ratingVoteService.vote(id, userId, request.voteType());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/vote")
+    public ResponseEntity<Void> removeVote(@PathVariable Long id, Authentication authentication) {
+        Long userId = getAuthenticatedUserId(authentication);
+        ratingVoteService.removeVote(id, userId);
+        return ResponseEntity.noContent().build();
     }
 
     private static Long getAuthenticatedUserId(Authentication authentication) {

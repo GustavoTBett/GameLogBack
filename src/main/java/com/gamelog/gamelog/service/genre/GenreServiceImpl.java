@@ -2,7 +2,7 @@ package com.gamelog.gamelog.service.genre;
 
 import com.gamelog.gamelog.model.Genre;
 import com.gamelog.gamelog.repository.GenreRepository;
-import org.springframework.data.domain.Example;
+import com.gamelog.gamelog.validation.genre.GenreValidation;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,13 +12,16 @@ import java.util.Optional;
 public class GenreServiceImpl implements GenreService{
 
     private final GenreRepository genreRepository;
+    private final GenreValidation genreValidation;
 
-    public GenreServiceImpl(GenreRepository genreRepository) {
+    public GenreServiceImpl(GenreRepository genreRepository, GenreValidation genreValidation) {
         this.genreRepository = genreRepository;
+        this.genreValidation = genreValidation;
     }
 
     @Override
     public Genre save(Genre genre) {
+        genreValidation.validateUniqueName(genre);
         return genreRepository.save(genre);
     }
 
@@ -34,9 +37,7 @@ public class GenreServiceImpl implements GenreService{
 
     @Override
     public Optional<Genre> findByName(String name) {
-        Genre example = new Genre();
-        example.setName(name);
-        return genreRepository.findOne(Example.of(example));
+        return genreRepository.findByName(name);
     }
 
     @Override

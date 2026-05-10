@@ -2,7 +2,7 @@ package com.gamelog.gamelog.service.game;
 
 import com.gamelog.gamelog.controller.dto.GameDetailResponse;
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
-import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+import com.gamelog.gamelog.model.enums.GamePlatform;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.GamePlatformMapping;
 import org.springframework.data.domain.Page;
@@ -17,7 +17,7 @@ public interface GameService {
 
     Optional<Game> get(Long id);
 
-    Optional<GameDetailResponse> getSummaryBySlug(String slug);
+    Optional<GameDetailResponse> getSummaryBySlug(String slug, Long currentUserId);
 
     void delete(Game game);
 
@@ -27,7 +27,9 @@ public interface GameService {
 
     Set<GamePlatformMapping> getPlatforms(Long gameId);
 
-    Page<GameSummaryResponse> explore(int page, int size, Long genreId, GamePlatform platform, Double minRating);
+    Page<GameSummaryResponse> explore(int page, int size, Long genreId, GamePlatform platform, Double minRating, String q);
+
+    List<GameSummaryResponse> summarize(List<Game> games);
 
     List<GameSummaryResponse> getPopular(int limit);
 

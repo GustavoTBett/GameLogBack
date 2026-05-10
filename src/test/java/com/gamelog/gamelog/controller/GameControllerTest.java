@@ -1,7 +1,7 @@
 package com.gamelog.gamelog.controller;
 
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
-import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+import com.gamelog.gamelog.model.enums.GamePlatform;
 import com.gamelog.gamelog.service.game.GameService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,7 +59,7 @@ class GameControllerTest {
         );
 
         Page<GameSummaryResponse> page = new PageImpl<>(List.of(response), PageRequest.of(0, 12), 1);
-        when(gameService.explore(0, 12, null, null, null)).thenReturn(page);
+        when(gameService.explore(0, 12, null, null, null, null)).thenReturn(page);
 
         mockMvc.perform(get("/games/explore")
                         .accept(MediaType.APPLICATION_JSON))
@@ -68,7 +69,7 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(12));
 
-        verify(gameService).explore(0, 12, null, null, null);
+        verify(gameService).explore(0, 12, null, null, null, null);
     }
 
     @Test
@@ -82,7 +83,7 @@ class GameControllerTest {
 
     @Test
     void getBySlugShouldReturnOkWhenSummaryExists() throws Exception {
-        when(gameService.getSummaryBySlug(eq("elden-ring"))).thenReturn(Optional.of(new com.gamelog.gamelog.controller.dto.GameDetailResponse(
+        when(gameService.getSummaryBySlug(eq("elden-ring"), isNull())).thenReturn(Optional.of(new com.gamelog.gamelog.controller.dto.GameDetailResponse(
                 1L,
                 "Elden Ring",
                 "elden-ring",

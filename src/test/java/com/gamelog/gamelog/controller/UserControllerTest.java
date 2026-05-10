@@ -1,6 +1,6 @@
 package com.gamelog.gamelog.controller;
 
-import com.gamelog.gamelog.model.EnumUser.UserRole;
+import com.gamelog.gamelog.model.enums.UserRole;
 import com.gamelog.gamelog.model.User;
 import com.gamelog.gamelog.service.user.UserService;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,6 +1,6 @@
 package com.gamelog.gamelog.controller.dto;
 
-import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+import com.gamelog.gamelog.model.enums.GamePlatform;
 
 import java.time.LocalDate;
 import java.util.List;

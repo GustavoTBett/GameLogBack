@@ -13,6 +13,10 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
 	Optional<Rating> findFirstByUserIdAndGameId(Long userId, Long gameId);
 
+	List<Rating> findAllByUserIdOrderByCreatedAtDescIdDesc(Long userId);
+
+	List<Rating> findAllByUserId(Long userId);
+
     List<Rating> findAllByGameIdOrderByCreatedAtDescIdDesc(Long gameId);
 
 	@Query("""
@@ -29,4 +33,5 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 			GROUP BY r.game.id
 			""")
 	List<Object[]> countRatingsByGameIds(@Param("gameIds") Collection<Long> gameIds);
+
 }

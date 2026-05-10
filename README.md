@@ -7,12 +7,13 @@ API backend do Gamelog para autenticação, catálogo de jogos, favoritos, avali
 O projeto centraliza o fluxo de descoberta e acompanhamento de jogos em uma API Spring Boot. Hoje o backend já entrega:
 
 - autenticação por sessão com CSRF;
+- login com Google via OAuth2 reaproveitando a sessão HTTP;
 - cadastro e gestão de usuários;
 - consulta de jogos, gêneros e relacionamento jogo-gênero;
 - favoritos;
 - avaliações com nota e comentário;
 - recuperação e redefinição de senha por e-mail;
-- integrações com RAWG, serviço de tradução, envio de e-mail e base para OpenAI.
+- integrações com RAWG, serviço de tradução, envio de e-mail e recomendações via Google Gemini.
 
 ## Stack
 
@@ -88,6 +89,8 @@ As configurações principais ficam em `src/main/resources/application.propertie
 - CSRF habilitado para requisições de escrita
 - CORS controlado por `APP_SECURITY_ALLOWED_ORIGINS`
 - cookie seguro opcional via `APP_SECURITY_COOKIE_SECURE`
+- login Google configurado por `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`
+- fluxo inicial exposto em `GET /auth/google`
 
 ### E-mail e redefinição de senha
 
@@ -115,14 +118,16 @@ Fluxo recomendado:
 
 1. `GET /auth/csrf` para obter o token CSRF.
 2. `POST /users` para criar conta ou `POST /auth/login` para entrar.
-3. Enviar cookie de sessão e o header CSRF nas requisições de escrita.
-4. `POST /auth/logout` encerra a sessão.
+3. Para login Google, iniciar em `GET /auth/google` e deixar o backend concluir o callback OAuth2.
+4. Enviar cookie de sessão e o header CSRF nas requisições de escrita.
+5. `POST /auth/logout` encerra a sessão.
 
 ## Endpoints atuais
 
 ### Auth
 
 - `GET /auth/csrf` - público
+- `GET /auth/google` - público
 - `POST /auth/login` - público
 - `POST /auth/logout` - autenticado
 - `GET /auth/me` - autenticado

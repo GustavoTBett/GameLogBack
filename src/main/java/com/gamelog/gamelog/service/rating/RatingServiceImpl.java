@@ -5,10 +5,12 @@ import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.model.User;
+import com.gamelog.gamelog.repository.GameRepository;
 import com.gamelog.gamelog.repository.RatingRepository;
 import com.gamelog.gamelog.validation.rating.RatingValidation;
 import com.gamelog.gamelog.service.game.GameService;
 import com.gamelog.gamelog.service.user.UserService;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,18 +24,18 @@ public class RatingServiceImpl implements RatingService {
 
     private final RatingRepository ratingRepository;
     private final UserService userService;
-    private final GameService gameService;
+    private final GameRepository gameRepository;
     private final RatingValidation ratingValidation;
 
     public RatingServiceImpl(
             RatingRepository ratingRepository,
             UserService userService,
-            GameService gameService,
+            GameRepository gameRepository,
             RatingValidation ratingValidation
     ) {
         this.ratingRepository = ratingRepository;
         this.userService = userService;
-        this.gameService = gameService;
+        this.gameRepository = gameRepository;
         this.ratingValidation = ratingValidation;
     }
 
@@ -41,7 +43,7 @@ public class RatingServiceImpl implements RatingService {
     public Rating buildRating(RatingRequest ratingRequest, Long userId) {
         User user = userService.get(userId)
                 .orElseThrow(() -> new EntityCannotBeNull("User not found with id " + userId));
-        Game game = gameService.get(ratingRequest.gameId())
+        Game game = gameRepository.findById(ratingRequest.gameId())
                 .orElseThrow(() -> new EntityCannotBeNull("Game not found with id " + ratingRequest.gameId()));
 
         return Rating.builder()
@@ -82,14 +84,14 @@ public class RatingServiceImpl implements RatingService {
     }
 
     private void recalculateGameAverage(Long gameId) {
-        Game game = gameService.get(gameId)
+        Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new EntityCannotBeNull("Game not found with id " + gameId));
 
         Double averageScore = ratingRepository.findAverageScoreByGameId(gameId);
         double resolvedAverage = averageScore != null ? averageScore : 0.0;
 
         game.setAverageRating(roundToTwoDecimals(resolvedAverage));
-        gameService.save(game);
+        gameRepository.save(game);
     }
 
     private double roundToTwoDecimals(double value) {

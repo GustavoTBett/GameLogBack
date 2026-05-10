@@ -5,8 +5,8 @@ import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.Rating;
 import com.gamelog.gamelog.model.User;
+import com.gamelog.gamelog.repository.GameRepository;
 import com.gamelog.gamelog.repository.RatingRepository;
-import com.gamelog.gamelog.service.game.GameService;
 import com.gamelog.gamelog.service.user.UserService;
 import com.gamelog.gamelog.validation.rating.RatingValidation;
 import org.junit.jupiter.api.Test;
@@ -33,7 +33,7 @@ class RatingServiceImplTest {
     private UserService userService;
 
     @Mock
-    private GameService gameService;
+    private GameRepository gameRepository;
 
     @Mock
     private RatingValidation ratingValidation;
@@ -48,7 +48,7 @@ class RatingServiceImplTest {
         RatingRequest request = new RatingRequest(2L, 10, "great");
 
         when(userService.get(1L)).thenReturn(Optional.of(user));
-        when(gameService.get(2L)).thenReturn(Optional.of(game));
+        when(gameRepository.findById(2L)).thenReturn(Optional.of(game));
 
         Rating rating = ratingService.buildRating(request, 1L);
 
@@ -64,7 +64,7 @@ class RatingServiceImplTest {
         when(userService.get(1L)).thenReturn(Optional.empty());
 
         assertThrows(EntityCannotBeNull.class, () -> ratingService.buildRating(request, 1L));
-        verifyNoInteractions(gameService);
+        verifyNoInteractions(gameRepository);
     }
 
     @Test
@@ -72,7 +72,7 @@ class RatingServiceImplTest {
         User user = User.builder().email("u@mail.com").username("u").password("x").build();
         RatingRequest request = new RatingRequest(2L, 10, "great");
         when(userService.get(1L)).thenReturn(Optional.of(user));
-        when(gameService.get(2L)).thenReturn(Optional.empty());
+        when(gameRepository.findById(2L)).thenReturn(Optional.empty());
 
         assertThrows(EntityCannotBeNull.class, () -> ratingService.buildRating(request, 1L));
     }
@@ -84,8 +84,8 @@ class RatingServiceImplTest {
         when(game.getId()).thenReturn(7L);
         when(ratingRepository.save(rating)).thenReturn(rating);
         when(ratingRepository.findAverageScoreByGameId(7L)).thenReturn(4.3333);
-        when(gameService.get(7L)).thenReturn(Optional.of(game));
-        when(gameService.save(game)).thenReturn(game);
+        when(gameRepository.findById(7L)).thenReturn(Optional.of(game));
+        when(gameRepository.save(game)).thenReturn(game);
 
         doNothing().when(ratingValidation).validateUniqueUserGame(rating);
 
@@ -94,7 +94,7 @@ class RatingServiceImplTest {
         verify(ratingRepository).save(rating);
         verify(ratingRepository).findAverageScoreByGameId(7L);
         verify(game).setAverageRating(4.33);
-        verify(gameService).save(game);
+        verify(gameRepository).save(game);
     }
 
     @Test
@@ -105,8 +105,8 @@ class RatingServiceImplTest {
         when(ratingRepository.save(rating)).thenReturn(rating);
         when(ratingRepository.findById(9L)).thenReturn(Optional.of(rating));
         when(ratingRepository.findAverageScoreByGameId(9L)).thenReturn(4.0);
-        when(gameService.get(9L)).thenReturn(Optional.of(game));
-        when(gameService.save(game)).thenReturn(game);
+        when(gameRepository.findById(9L)).thenReturn(Optional.of(game));
+        when(gameRepository.save(game)).thenReturn(game);
 
         doNothing().when(ratingValidation).validateUniqueUserGame(rating);
 

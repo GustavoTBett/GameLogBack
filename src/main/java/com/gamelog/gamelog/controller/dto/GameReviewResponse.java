@@ -7,6 +7,10 @@ public record GameReviewResponse(
         Integer score,
         String review,
         String username,
-        Instant createdAt
+        Instant createdAt,
+        Instant updatedAt,
+        Long upvoteCount,
+        Long downvoteCount,
+        String userVote
 ) {
 }

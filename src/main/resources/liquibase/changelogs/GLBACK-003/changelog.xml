@@ -1,0 +1,14 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="0001-add-rating-votes" author="assistant">
+        <sqlFile path="/liquibase/changelogs/GLBACK-003/001_add_rating_votes.sql"/>
+    </changeSet>
+
+    <changeSet id="0002-add-google-oauth-user-columns" author="assistant">
+        <sqlFile path="/liquibase/changelogs/GLBACK-003/002_add_google_oauth_user_columns.sql"/>
+    </changeSet>
+
+</databaseChangeLog>

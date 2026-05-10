@@ -3,12 +3,14 @@ package com.gamelog.gamelog.controller;
 import com.gamelog.gamelog.controller.dto.GameDetailResponse;
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
 import com.gamelog.gamelog.controller.dto.PagedResponse;
-import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+import com.gamelog.gamelog.config.security.AppUserPrincipal;
+import com.gamelog.gamelog.model.enums.GamePlatform;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.service.game.GameService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,10 +33,11 @@ public class GameController {
             @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
             @RequestParam(required = false) Long genreId,
             @RequestParam(required = false) GamePlatform platform,
-            @RequestParam(required = false) Double minRating
+            @RequestParam(required = false) Double minRating,
+            @RequestParam(required = false) String q
     ) {
         return ResponseEntity.ok(
-                PagedResponse.fromPage(gameService.explore(page, size, genreId, platform, minRating))
+            PagedResponse.fromPage(gameService.explore(page, size, genreId, platform, minRating, q))
         );
     }
 
@@ -60,8 +63,13 @@ public class GameController {
     }
 
     @GetMapping("/slug/{slug}")
-    public ResponseEntity<GameDetailResponse> getBySlug(@PathVariable String slug) {
-        return gameService.getSummaryBySlug(slug)
+    public ResponseEntity<GameDetailResponse> getBySlug(@PathVariable String slug, Authentication authentication) {
+        Long currentUserId = null;
+        if (authentication != null && authentication.getPrincipal() instanceof AppUserPrincipal principal) {
+            currentUserId = principal.getId();
+        }
+
+        return gameService.getSummaryBySlug(slug, currentUserId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

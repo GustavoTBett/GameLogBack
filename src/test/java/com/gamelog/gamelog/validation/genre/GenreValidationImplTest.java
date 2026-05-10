@@ -3,7 +3,7 @@ package com.gamelog.gamelog.validation.genre;
 import com.gamelog.gamelog.exception.EntityCannotBeNull;
 import com.gamelog.gamelog.exception.genre.AlreadyExistGenreWithName;
 import com.gamelog.gamelog.model.Genre;
-import com.gamelog.gamelog.service.genre.GenreServiceImpl;
+import com.gamelog.gamelog.repository.GenreRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 class GenreValidationImplTest {
 
     @Mock
-    private GenreServiceImpl genreService;
+    private GenreRepository genreRepository;
 
     @InjectMocks
     private GenreValidationImpl genreValidation;
@@ -34,7 +34,7 @@ class GenreValidationImplTest {
     void validateUniqueNameShouldThrowWhenAnotherGenreWithSameNameExists() {
         Genre requestGenre = Genre.builder().id(1L).name("Action").build();
         Genre existing = Genre.builder().id(2L).name("Action").build();
-        when(genreService.findByName("Action")).thenReturn(Optional.of(existing));
+        when(genreRepository.findByName("Action")).thenReturn(Optional.of(existing));
 
         assertThrows(AlreadyExistGenreWithName.class, () -> genreValidation.validateUniqueName(requestGenre));
     }
@@ -42,7 +42,7 @@ class GenreValidationImplTest {
     @Test
     void validateUniqueNameShouldPassWhenGenreNotFound() {
         Genre requestGenre = Genre.builder().id(1L).name("Action").build();
-        when(genreService.findByName("Action")).thenReturn(Optional.empty());
+        when(genreRepository.findByName("Action")).thenReturn(Optional.empty());
 
         assertDoesNotThrow(() -> genreValidation.validateUniqueName(requestGenre));
     }

@@ -1,6 +1,6 @@
 package com.gamelog.gamelog.model;
 
-import com.gamelog.gamelog.model.EnumUser.GamePlatform;
+import com.gamelog.gamelog.model.enums.GamePlatform;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;

@@ -1,6 +1,5 @@
 package com.gamelog.gamelog.model;
 
-import com.gamelog.gamelog.validation.genre.GenreValidationImpl;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -14,7 +13,6 @@ import java.util.Objects;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@EntityListeners(GenreValidationImpl.class)
 public class Genre implements Serializable {
 
     @Id

@@ -8,6 +8,7 @@ import com.gamelog.gamelog.model.User;
 import com.gamelog.gamelog.repository.FavoriteRepository;
 import com.gamelog.gamelog.service.game.GameService;
 import com.gamelog.gamelog.service.user.UserService;
+import com.gamelog.gamelog.validation.favorite.FavoriteValidation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +34,9 @@ class FavoriteServiceImplTest {
 
     @Mock
     private GameService gameService;
+
+    @Mock
+    private FavoriteValidation favoriteValidation;
 
     @InjectMocks
     private FavoriteServiceImpl favoriteService;
@@ -82,6 +86,7 @@ class FavoriteServiceImplTest {
         favoriteService.delete(favorite);
 
         verify(favoriteRepository).save(favorite);
+        verify(favoriteValidation).validateUniqueUserGame(favorite);
         verify(favoriteRepository).findById(9L);
         verify(favoriteRepository).delete(favorite);
     }
