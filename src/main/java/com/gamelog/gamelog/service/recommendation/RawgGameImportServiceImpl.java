@@ -8,6 +8,7 @@ import com.gamelog.gamelog.repository.GameRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
@@ -241,7 +242,13 @@ public class RawgGameImportServiceImpl implements RawgGameImportService {
             managedGame.setDefaultRating(0.0);
         }
 
-        return gameRepository.save(managedGame);
+        try {
+            return gameRepository.save(managedGame);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.warn("RAWG game import raced with another update for slug={}; reloading persisted record", rawgSlug);
+            return gameRepository.findBySlug(rawgSlug)
+                    .orElseThrow(() -> e);
+        }
     }
 
     private String extractDescription(JsonNode node) {
