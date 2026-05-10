@@ -1,5 +1,6 @@
 package com.gamelog.gamelog.config;
 
+import com.gamelog.gamelog.config.security.CookieCsrfTokenRepositoryConfig;
 import com.gamelog.gamelog.config.security.GoogleOAuthSuccessHandler;
 import com.gamelog.gamelog.config.security.CustomAccessDeniedHandler;
 import org.springframework.beans.factory.annotation.Value;
