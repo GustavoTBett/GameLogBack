@@ -7,6 +7,9 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.stereotype.Component;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class CsrfSameSiteCookieFilter implements Filter {
 
     @Override
@@ -27,13 +31,16 @@ public class CsrfSameSiteCookieFilter implements Filter {
 
         CsrfToken csrf = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
         if (csrf != null) {
+            boolean secure = request.isSecure();
+
             ResponseCookie cookie = ResponseCookie.from("XSRF-TOKEN", csrf.getToken())
                     .httpOnly(false)
-                    .secure(true)
+                    .secure(secure)
                     .sameSite("None")
                     .path("/")
                     .build();
-            response.setHeader("Set-Cookie", cookie.toString());
+
+            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
     }
 }

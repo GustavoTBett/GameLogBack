@@ -1,6 +1,7 @@
 package com.gamelog.gamelog.config;
 
 import com.gamelog.gamelog.config.security.GoogleOAuthSuccessHandler;
+import com.gamelog.gamelog.config.security.CustomAccessDeniedHandler;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,11 +47,13 @@ public class SecurityConfig {
             HttpSecurity http,
             SecurityContextRepository securityContextRepository,
             SessionRegistry sessionRegistry,
-            GoogleOAuthSuccessHandler googleOAuthSuccessHandler
+            GoogleOAuthSuccessHandler googleOAuthSuccessHandler,
+            CustomAccessDeniedHandler accessDeniedHandler,
+            CookieCsrfTokenRepositoryConfig cookieCsrfConfig
     ) throws Exception {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+                .csrf(csrf -> csrf.csrfTokenRepository(cookieCsrfConfig.csrfTokenRepository()))
                 .securityContext(security -> security.securityContextRepository(securityContextRepository))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
@@ -71,11 +74,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/users/**").hasRole("ADMIN")
-                        .requestMatchers("/auth/me", "/auth/logout").authenticated()
+                        .requestMatchers("/auth/me", "/auth/logout", "/users/me").authenticated()
                         .anyRequest().authenticated()
                 )
                     .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .accessDeniedHandler(accessDeniedHandler)
                     )
                 .oauth2Login(oauth2 -> oauth2.successHandler(googleOAuthSuccessHandler))
                 .httpBasic(httpBasic -> httpBasic.disable())
