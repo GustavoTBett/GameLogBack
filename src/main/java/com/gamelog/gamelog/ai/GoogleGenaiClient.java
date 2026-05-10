@@ -1,5 +1,6 @@
 package com.gamelog.gamelog.ai;
 
+import com.gamelog.gamelog.exception.recommendation.RecommendationServiceUnavailableException;
 import com.google.genai.Client;
 import com.google.genai.types.GenerateContentResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +34,35 @@ public class GoogleGenaiClient implements AiClient {
             return response.text();
         } catch (Exception e) {
             log.error("Error calling google-genai client", e);
+
+            if (isServiceUnavailable(e)) {
+                throw new RecommendationServiceUnavailableException(
+                        "Serviço de recomendação temporariamente indisponível. Tente novamente em instantes.",
+                        e
+                );
+            }
+
             throw new RuntimeException("Failed to call Gemini via google-genai", e);
         }
+    }
+
+    private boolean isServiceUnavailable(Throwable throwable) {
+        Throwable current = throwable;
+
+        while (current != null) {
+            String simpleName = current.getClass().getSimpleName();
+            String message = current.getMessage();
+
+            if ("ServerException".equals(simpleName)
+                    && message != null
+                    && (message.contains("503") || message.toLowerCase().contains("service unavailable"))) {
+                return true;
+            }
+
+            current = current.getCause();
+        }
+
+        return false;
     }
 
     private String normalizeModel(String model) {

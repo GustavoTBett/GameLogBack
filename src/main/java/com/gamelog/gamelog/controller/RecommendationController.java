@@ -3,6 +3,7 @@ package com.gamelog.gamelog.controller;
 import com.gamelog.gamelog.config.security.AppUserPrincipal;
 import com.gamelog.gamelog.controller.dto.RecommendationResponse;
 import com.gamelog.gamelog.exception.InsufficientRatingsException;
+import com.gamelog.gamelog.exception.recommendation.RecommendationServiceUnavailableException;
 import com.gamelog.gamelog.service.recommendation.RecommendationGenerationOrchestrator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 @RestController
 @RequestMapping("/recommendations")
@@ -44,6 +46,11 @@ public class RecommendationController {
             return ResponseEntity
                     .status(BAD_REQUEST)
                     .body(new ErrorResponse("Insufficient ratings", e.getMessage()));
+        } catch (RecommendationServiceUnavailableException e) {
+            log.warn("Recommendation service unavailable: {}", e.getMessage());
+            return ResponseEntity
+                .status(SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("Recommendation temporarily unavailable", e.getMessage()));
         } catch (Exception e) {
             log.error("Error generating recommendation", e);
             return ResponseEntity
