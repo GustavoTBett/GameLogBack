@@ -12,6 +12,7 @@ import org.springframework.web.util.HtmlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -39,10 +40,29 @@ public class SteamService {
     private static final Pattern REVIEW_TITLE_BLOCK_PATTERN = Pattern.compile("(?is)<div[^>]*class=[\"'][^\"']*\\btitle\\b[^\"']*[\"'][^>]*>(.*?)</div>");
     private static final Pattern REVIEW_DATE_PATTERN = Pattern.compile("(?is)<div[^>]*class=[\"'][^\"']*\\bdate_posted\\b[^\"']*[\"'][^>]*>(.*?)</div>");
     private static final Pattern REVIEW_TEXT_START_PATTERN = Pattern.compile("(?is)<div[^>]*id=[\"']ReviewText[\"'][^>]*>");
-    private static final DateTimeFormatter REVIEW_TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
-            .parseCaseInsensitive()
-            .appendPattern("MMM d, uuuu @ h:mma")
-            .toFormatter(Locale.ENGLISH);
+    private static final Pattern POSTED_TIMESTAMP_PATTERN = Pattern.compile(
+            "(?i)\\bPosted:\\s*((?:[A-Z]{3,9}\\s+\\d{1,2}|\\d{1,2}\\s+[A-Z]{3,9}),?\\s+\\d{4}(?:\\s+@\\s+\\d{1,2}:\\d{2}\\s*[AP]M)?)"
+    );
+    private static final List<DateTimeFormatter> REVIEW_TIMESTAMP_FORMATTERS = List.of(
+            steamTimestampFormatter("MMM d, uuuu @ h:mma"),
+            steamTimestampFormatter("MMMM d, uuuu @ h:mma"),
+            steamTimestampFormatter("d MMM, uuuu @ h:mma"),
+            steamTimestampFormatter("d MMMM, uuuu @ h:mma"),
+            steamTimestampFormatter("MMM d uuuu @ h:mma"),
+            steamTimestampFormatter("MMMM d uuuu @ h:mma"),
+            steamTimestampFormatter("d MMM uuuu @ h:mma"),
+            steamTimestampFormatter("d MMMM uuuu @ h:mma")
+    );
+    private static final List<DateTimeFormatter> REVIEW_DATE_FORMATTERS = List.of(
+            steamTimestampFormatter("MMM d, uuuu"),
+            steamTimestampFormatter("MMMM d, uuuu"),
+            steamTimestampFormatter("d MMM, uuuu"),
+            steamTimestampFormatter("d MMMM, uuuu"),
+            steamTimestampFormatter("MMM d uuuu"),
+            steamTimestampFormatter("MMMM d uuuu"),
+            steamTimestampFormatter("d MMM uuuu"),
+            steamTimestampFormatter("d MMMM uuuu")
+    );
 
     private final RestTemplate restTemplate;
 
@@ -204,8 +224,8 @@ public class SteamService {
         Boolean votedUp = extractRecommendation(html);
         Long timestampCreated = extractPostedTimestamp(html);
 
-        // Fallback: if we couldn't determine recommendation from profile page, try Store appreviews API
-        if (votedUp == null) {
+        // Fallback: if the profile page misses recommendation or date, try Store appreviews API.
+        if (votedUp == null || timestampCreated == null) {
             try {
                 Map<String, Object> storeReview = fetchUserReviewFromStoreApi(steamId, appId);
                 if (storeReview != null) {
@@ -219,7 +239,7 @@ public class SteamService {
                     if (timestampCreated == null && storeReview.get("timestamp_created") instanceof Number) {
                         timestampCreated = ((Number) storeReview.get("timestamp_created")).longValue();
                     }
-                    log.info("fetchReviewDetails: fallback to store API for steamId={}, appId={}, voted_up={}", steamId, appId, votedUp);
+                    log.info("fetchReviewDetails: fallback to store API for steamId={}, appId={}, voted_up={}, timestamp={}", steamId, appId, votedUp, timestampCreated);
                 } else {
                     log.debug("fetchReviewDetails: store API did not return a review for steamId={}, appId={}", steamId, appId);
                 }
@@ -449,36 +469,78 @@ public class SteamService {
     }
 
     private static Long extractPostedTimestamp(String html) {
-        Matcher matcher = REVIEW_DATE_PATTERN.matcher(html);
-        if (!matcher.find()) {
-            return null;
+        String datePostedText = extractFirstGroup(html, REVIEW_DATE_PATTERN);
+        Long fromDatePosted = extractPostedTimestampFromText(datePostedText);
+        if (fromDatePosted != null) {
+            return fromDatePosted;
         }
 
-        String text = cleanHtmlFragment(matcher.group(1));
+        Long fromPreReview = extractPostedTimestampFromText(cleanHtmlFragment(htmlBeforeReviewText(html)));
+        if (fromPreReview != null) {
+            return fromPreReview;
+        }
+
+        return extractPostedTimestampFromText(cleanHtmlFragment(html));
+    }
+
+    private static Long extractPostedTimestampFromText(String text) {
         if (text == null) {
             return null;
         }
 
-        for (String line : text.split("\\R")) {
-            String normalized = line.trim();
-            if (!normalized.startsWith("Posted:")) {
-                continue;
-            }
-
-            String rawTimestamp = normalized.substring("Posted:".length()).trim();
+        Matcher matcher = POSTED_TIMESTAMP_PATTERN.matcher(text);
+        while (matcher.find()) {
+            String rawTimestamp = matcher.group(1);
             log.debug("extractPostedTimestamp: rawTimestamp='{}'", rawTimestamp);
-            try {
-                LocalDateTime parsed = LocalDateTime.parse(rawTimestamp, REVIEW_TIMESTAMP_FORMATTER);
-                long epoch = parsed.toInstant(ZoneOffset.UTC).getEpochSecond();
+
+            Long epoch = parseSteamPostedTimestamp(rawTimestamp);
+            if (epoch != null) {
                 log.debug("extractPostedTimestamp: parsed epoch={}", epoch);
                 return epoch;
-            } catch (DateTimeParseException ignored) {
-                log.debug("extractPostedTimestamp: failed to parse timestamp='{}'", rawTimestamp);
-                return null;
             }
         }
 
         return null;
+    }
+
+    private static Long parseSteamPostedTimestamp(String rawTimestamp) {
+        if (rawTimestamp == null) {
+            return null;
+        }
+
+        String normalized = rawTimestamp
+                .replace('\u00A0', ' ')
+                .replaceAll("\\s+", " ")
+                .replaceAll("(?i)\\s+([AP]M)$", "$1")
+                .trim();
+
+        for (DateTimeFormatter formatter : REVIEW_TIMESTAMP_FORMATTERS) {
+            try {
+                LocalDateTime parsed = LocalDateTime.parse(normalized, formatter);
+                return parsed.toInstant(ZoneOffset.UTC).getEpochSecond();
+            } catch (DateTimeParseException ignored) {
+                // Try the next Steam date shape.
+            }
+        }
+
+        for (DateTimeFormatter formatter : REVIEW_DATE_FORMATTERS) {
+            try {
+                LocalDate parsed = LocalDate.parse(normalized, formatter);
+                return parsed.atStartOfDay().toInstant(ZoneOffset.UTC).getEpochSecond();
+            } catch (DateTimeParseException ignored) {
+                // Try the next Steam date shape.
+            }
+        }
+
+        log.debug("extractPostedTimestamp: failed to parse timestamp='{}'", rawTimestamp);
+        return null;
+    }
+
+    private static DateTimeFormatter steamTimestampFormatter(String pattern) {
+        return new DateTimeFormatterBuilder()
+                .parseCaseInsensitive()
+                .appendPattern(pattern)
+                .toFormatter(Locale.ENGLISH);
     }
 
     private static String cleanHtmlFragment(String html) {

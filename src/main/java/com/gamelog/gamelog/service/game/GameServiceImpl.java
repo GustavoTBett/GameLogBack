@@ -399,8 +399,8 @@ public class GameServiceImpl implements GameService{
                 .map(com.gamelog.gamelog.model.User::getUsername)
                 .orElse("Usuário Steam");
 
-        Instant createdAt = review.getReviewedAt() != null ? review.getReviewedAt() : review.getImportedAt();
-        Instant updatedAt = review.getImportedAt() != null ? review.getImportedAt() : createdAt;
+        Instant createdAt = review.getReviewedAt();
+        Instant updatedAt = review.getReviewedAt();
         return new GameReviewResponse(
                 review.getId(),
                 null,

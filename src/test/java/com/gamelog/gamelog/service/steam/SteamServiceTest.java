@@ -6,6 +6,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -124,10 +126,48 @@ public class SteamServiceTest {
                 .andRespond(withSuccess(emptyListing, MediaType.TEXT_HTML));
         server.expect(requestTo(org.hamcrest.Matchers.containsString("/recommended/333/")))
                 .andRespond(withSuccess(reviewPage, MediaType.TEXT_HTML));
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/appreviews/333")))
+                .andRespond(withSuccess("{\"reviews\":[]}", MediaType.APPLICATION_JSON));
 
         List<Map<String, Object>> reviews = steamService.getUserReviews("76561198000000000");
 
         assertThat(reviews).hasSize(1);
         assertThat(reviews.getFirst().get("voted_up")).isEqualTo(true);
+    }
+
+    @Test
+    void getUserReviews_parsesPostedTimestampFromTextBeforeReviewBlock() {
+        String listing = """
+                <a href="https://steamcommunity.com/profiles/76561198000000000/recommended/444/">Liked</a>
+                """;
+        String emptyListing = "<html></html>";
+        String reviewPage = """
+                <html>
+                  <body>
+                    <div class="profile_small_header_texture">
+                      Posted: 23 May, 2020 @ 10:42pm
+                      Recommended
+                      21.0 hrs on record
+                    </div>
+                    <div id="ReviewText">Um otimo jogo</div>
+                  </body>
+                </html>
+                """;
+
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/recommended/?p=1")))
+                .andRespond(withSuccess(listing, MediaType.TEXT_HTML));
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/recommended/?p=2")))
+                .andRespond(withSuccess(emptyListing, MediaType.TEXT_HTML));
+        server.expect(requestTo(org.hamcrest.Matchers.containsString("/recommended/444/")))
+                .andRespond(withSuccess(reviewPage, MediaType.TEXT_HTML));
+
+        List<Map<String, Object>> reviews = steamService.getUserReviews("76561198000000000");
+
+        long expectedTimestamp = LocalDateTime.of(2020, 5, 23, 22, 42)
+                .toInstant(ZoneOffset.UTC)
+                .getEpochSecond();
+
+        assertThat(reviews).hasSize(1);
+        assertThat(reviews.getFirst().get("timestamp_created")).isEqualTo(expectedTimestamp);
     }
 }
