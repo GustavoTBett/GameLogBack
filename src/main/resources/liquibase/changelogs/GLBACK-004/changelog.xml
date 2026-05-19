@@ -1,0 +1,18 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="0001-create-steam-account" author="assistant">
+        <sqlFile path="/liquibase/changelogs/GLBACK-004/001_create_steam_account_table.sql"/>
+    </changeSet>
+
+    <changeSet id="0002-create-steam-game-review" author="assistant">
+        <sqlFile path="/liquibase/changelogs/GLBACK-004/002_create_steam_game_review_table.sql"/>
+    </changeSet>
+
+    <changeSet id="0003-create-steam-user-review" author="assistant">
+        <sqlFile path="/liquibase/changelogs/GLBACK-004/003_create_steam_user_review_table.sql"/>
+    </changeSet>
+
+</databaseChangeLog>

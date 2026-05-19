@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gamelog.gamelog.config.security.AppUserPrincipal;
 import com.gamelog.gamelog.controller.dto.RatingRequest;
 import com.gamelog.gamelog.model.Rating;
+import com.gamelog.gamelog.model.User;
 import com.gamelog.gamelog.service.rating.RatingService;
 import com.gamelog.gamelog.service.ratingvote.RatingVoteService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class RatingControllerTest {
@@ -56,7 +58,14 @@ class RatingControllerTest {
         RatingRequest request = new RatingRequest(2L, 10, "great");
         Rating rating = mock(Rating.class);
         Rating saved = mock(Rating.class);
+        User owner = mock(User.class);
+
         when(saved.getId()).thenReturn(55L);
+        when(saved.getScore()).thenReturn(10);
+        when(saved.getReview()).thenReturn("great");
+        when(saved.getUser()).thenReturn(owner);
+        when(owner.getId()).thenReturn(1L);
+        when(owner.getUsername()).thenReturn("gustavo");
 
         when(ratingService.buildRating(any(RatingRequest.class), eq(1L))).thenReturn(rating);
         when(ratingService.save(rating)).thenReturn(saved);
@@ -66,7 +75,11 @@ class RatingControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "http://localhost/ratings/55"));
+                .andExpect(header().string("Location", "http://localhost/ratings/55"))
+                .andExpect(jsonPath("$.source").value("APP"))
+                .andExpect(jsonPath("$.score").value(10))
+                .andExpect(jsonPath("$.canEdit").value(true))
+                .andExpect(jsonPath("$.canVote").value(false));
 
         verify(ratingService).buildRating(any(RatingRequest.class), eq(1L));
         verify(ratingService).save(rating);
@@ -83,12 +96,50 @@ class RatingControllerTest {
     @Test
     void deleteShouldReturnNoContentWhenExists() throws Exception {
         Rating rating = mock(Rating.class);
+        User owner = mock(User.class);
+
+        when(owner.getId()).thenReturn(1L);
+        when(rating.getUser()).thenReturn(owner);
         when(ratingService.get(1L)).thenReturn(Optional.of(rating));
 
-        mockMvc.perform(delete("/ratings/1"))
+        mockMvc.perform(delete("/ratings/1").with(authentication(1L, "USER")))
                 .andExpect(status().isNoContent());
 
         verify(ratingService).delete(rating);
+    }
+
+    @Test
+    void updateShouldReturnForbiddenWhenUserIsNotOwner() throws Exception {
+        RatingRequest request = new RatingRequest(2L, 9, "updated");
+        Rating rating = mock(Rating.class);
+        User owner = mock(User.class);
+
+        when(owner.getId()).thenReturn(2L);
+        when(rating.getUser()).thenReturn(owner);
+        when(ratingService.get(55L)).thenReturn(Optional.of(rating));
+
+        mockMvc.perform(put("/ratings/55")
+                        .with(authentication(1L, "USER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        verify(ratingService, never()).save(any());
+    }
+
+    @Test
+    void deleteShouldReturnForbiddenWhenUserIsNotOwner() throws Exception {
+        Rating rating = mock(Rating.class);
+        User owner = mock(User.class);
+
+        when(owner.getId()).thenReturn(2L);
+        when(rating.getUser()).thenReturn(owner);
+        when(ratingService.get(55L)).thenReturn(Optional.of(rating));
+
+        mockMvc.perform(delete("/ratings/55").with(authentication(1L, "USER")))
+                .andExpect(status().isForbidden());
+
+        verify(ratingService, never()).delete(any());
     }
 
     private static RequestPostProcessor authentication(Long userId, String role) {

@@ -11,6 +11,10 @@ public record GameReviewResponse(
         Instant updatedAt,
         Long upvoteCount,
         Long downvoteCount,
-        String userVote
+        String userVote,
+        String source,
+        Boolean recommended,
+        Boolean canEdit,
+        Boolean canVote
 ) {
 }

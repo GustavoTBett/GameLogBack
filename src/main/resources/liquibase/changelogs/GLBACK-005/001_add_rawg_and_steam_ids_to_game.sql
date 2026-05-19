@@ -1,0 +1,5 @@
+ALTER TABLE game
+    ADD COLUMN IF NOT EXISTS rawg_id BIGINT,
+    ADD COLUMN IF NOT EXISTS steam_app_id BIGINT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_game_rawg_id ON game(rawg_id);

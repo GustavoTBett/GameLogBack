@@ -46,6 +46,12 @@ public class Game extends MasterEntityWAudit {
     @Column(name = "rawg_image_url")
     private String rawgImageUrl;
 
+    @Column(name = "rawg_id", unique = true)
+    private Long rawgId;
+
+    @Column(name = "steam_app_id")
+    private Long steamAppId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "image_source", nullable = false)
     private ImageSource imageSource;

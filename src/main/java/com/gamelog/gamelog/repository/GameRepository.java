@@ -14,6 +14,10 @@ public interface GameRepository extends JpaRepository<Game, Long>, JpaSpecificat
 
 	Optional<Game> findBySlug(String slug);
 
+	Optional<Game> findByName(String name);
+
+	Optional<Game> findBySteamAppId(Long steamAppId);
+
 	@Query(
 			value = """
 					SELECT g

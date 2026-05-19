@@ -54,6 +54,8 @@ class GameControllerTest {
                 LocalDate.of(2022, 2, 25),
                 "FromSoftware",
                 100L,
+                80L,
+                20L,
                 List.of("RPG"),
                 List.of(GamePlatform.PC)
         );
@@ -95,6 +97,8 @@ class GameControllerTest {
                 LocalDate.of(2022, 2, 25),
                 "FromSoftware",
                 100L,
+                80L,
+                20L,
                 List.of("RPG"),
                 List.of(GamePlatform.PC),
                 List.of()

@@ -7,5 +7,7 @@
     <include file="liquibase/changelogs/GLBACK-001/changelog.xml"/>
     <include file="liquibase/changelogs/GLBACK-002/changelog.xml"/>
     <include file="liquibase/changelogs/GLBACK-003/changelog.xml"/>
+    <include file="liquibase/changelogs/GLBACK-004/changelog.xml"/>
+    <include file="liquibase/changelogs/GLBACK-005/changelog.xml"/>
 
 </databaseChangeLog>

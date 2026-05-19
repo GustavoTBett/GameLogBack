@@ -8,12 +8,14 @@ import com.gamelog.gamelog.model.enums.RatingVoteType;
 import com.gamelog.gamelog.model.Game;
 import com.gamelog.gamelog.model.GamePlatformMapping;
 import com.gamelog.gamelog.model.Rating;
+import com.gamelog.gamelog.model.SteamUserReview;
 import com.gamelog.gamelog.repository.GamePlatformMappingRepository;
 import com.gamelog.gamelog.repository.GameRepository;
 import com.gamelog.gamelog.controller.dto.GameSummaryResponse;
 import com.gamelog.gamelog.model.GameGenre;
 import com.gamelog.gamelog.repository.GameGenreRepository;
 import com.gamelog.gamelog.repository.RatingRepository;
+import com.gamelog.gamelog.repository.SteamUserReviewRepository;
 import com.gamelog.gamelog.service.ratingvote.RatingVoteService;
 import com.gamelog.gamelog.service.ratingvote.RatingVoteStats;
 import com.gamelog.gamelog.service.image.RawgImageBackfillService;
@@ -35,12 +37,14 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Comparator;
@@ -55,6 +59,7 @@ public class GameServiceImpl implements GameService{
     private final GamePlatformMappingRepository gamePlatformRepository;
     private final GameGenreRepository gameGenreRepository;
     private final RatingRepository ratingRepository;
+    private final SteamUserReviewRepository steamUserReviewRepository;
     @Lazy
     private final RatingVoteService ratingVoteService;
     private final GameImageResolver gameImageResolver;
@@ -65,6 +70,7 @@ public class GameServiceImpl implements GameService{
             GamePlatformMappingRepository gamePlatformRepository,
             GameGenreRepository gameGenreRepository,
             RatingRepository ratingRepository,
+            SteamUserReviewRepository steamUserReviewRepository,
             RatingVoteService ratingVoteService,
             GameImageResolver gameImageResolver,
             RawgImageBackfillService rawgImageBackfillService
@@ -73,6 +79,7 @@ public class GameServiceImpl implements GameService{
         this.gamePlatformRepository = gamePlatformRepository;
         this.gameGenreRepository = gameGenreRepository;
         this.ratingRepository = ratingRepository;
+        this.steamUserReviewRepository = steamUserReviewRepository;
         this.ratingVoteService = ratingVoteService;
         this.gameImageResolver = gameImageResolver;
         this.rawgImageBackfillService = rawgImageBackfillService;
@@ -277,12 +284,13 @@ public class GameServiceImpl implements GameService{
 
         rawgImageBackfillService.triggerBackfillForGames(games);
 
-        Map<Long, Long> reviewsByGame = getReviewsByGame(games);
+        Map<Long, Long> appReviewsByGame = getAppReviewsByGame(games);
+        Map<Long, Long> steamReviewsByGame = getSteamReviewsByGame(games);
         Map<Long, List<String>> genresByGame = getGenresByGame(games);
         Map<Long, List<GamePlatform>> platformsByGame = getPlatformsByGame(games);
 
         return games.stream()
-                .map(game -> toSummaryResponse(game, reviewsByGame, genresByGame, platformsByGame))
+                .map(game -> toSummaryResponse(game, appReviewsByGame, steamReviewsByGame, genresByGame, platformsByGame))
                 .toList();
     }
 
@@ -290,18 +298,21 @@ public class GameServiceImpl implements GameService{
         return toSummaryResponse(
                 game,
                 Map.of(game.getId(), 0L),
+                Map.of(game.getId(), 0L),
                 Map.of(game.getId(), List.of()),
                 Map.of(game.getId(), List.of())
         );
     }
 
         private GameDetailResponse toDetailResponse(Game game, Long currentUserId) {
-        Map<Long, Long> reviewsByGame = getReviewsByGame(List.of(game));
+        Map<Long, Long> appReviewsByGame = getAppReviewsByGame(List.of(game));
+        Map<Long, Long> steamReviewsByGame = getSteamReviewsByGame(List.of(game));
         Map<Long, List<String>> genresByGame = getGenresByGame(List.of(game));
         Map<Long, List<GamePlatform>> platformsByGame = getPlatformsByGame(List.of(game));
 
-        GameSummaryResponse summary = toSummaryResponse(game, reviewsByGame, genresByGame, platformsByGame);
+        GameSummaryResponse summary = toSummaryResponse(game, appReviewsByGame, steamReviewsByGame, genresByGame, platformsByGame);
         List<Rating> ratings = ratingRepository.findAllByGameIdOrderByCreatedAtDescIdDesc(game.getId());
+        List<SteamUserReview> steamReviews = steamUserReviewRepository.findAllByGameIdAndActiveTrue(game.getId());
         Map<Long, RatingVoteStats> voteStatsByRating = ratingVoteService.getVoteStatsByRatingIds(
             ratings.stream().map(Rating::getId).collect(Collectors.toSet())
         );
@@ -314,13 +325,23 @@ public class GameServiceImpl implements GameService{
             .map(rating -> toGameReviewResponse(
                 rating,
                 voteStatsByRating.getOrDefault(rating.getId(), RatingVoteStats.empty()),
-                userVotesByRating.get(rating.getId())
+                userVotesByRating.get(rating.getId()),
+                currentUserId
             ))
+            .collect(Collectors.toCollection(ArrayList::new));
+
+        reviews.addAll(
+            steamReviews.stream()
+                .map(this::toGameReviewResponse)
+                .toList()
+        );
+
+        reviews = reviews.stream()
             .sorted(Comparator
                 .comparingLong((GameReviewResponse review) -> review.upvoteCount() - review.downvoteCount())
                 .reversed()
                 .thenComparing(GameReviewResponse::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(GameReviewResponse::id, Comparator.reverseOrder()))
+                .thenComparing(GameReviewResponse::id, Comparator.nullsLast(Comparator.reverseOrder())))
             .toList();
 
         return new GameDetailResponse(
@@ -335,6 +356,8 @@ public class GameServiceImpl implements GameService{
             summary.releaseDate(),
             summary.developer(),
             summary.totalReviews(),
+            summary.appReviewCount(),
+            summary.steamReviewCount(),
             summary.genres(),
             summary.platforms(),
             reviews
@@ -344,9 +367,14 @@ public class GameServiceImpl implements GameService{
     private GameReviewResponse toGameReviewResponse(
             Rating rating,
             RatingVoteStats voteStats,
-            RatingVoteType userVote
+            RatingVoteType userVote,
+            Long currentUserId
     ) {
         String username = rating.getUser() != null ? rating.getUser().getUsername() : "Usuário";
+
+        Long ownerId = rating.getUser() != null ? rating.getUser().getId() : null;
+        boolean canEdit = currentUserId != null && Objects.equals(ownerId, currentUserId);
+        boolean canVote = currentUserId != null && ownerId != null && !Objects.equals(ownerId, currentUserId);
 
         return new GameReviewResponse(
                 rating.getId(),
@@ -357,17 +385,49 @@ public class GameServiceImpl implements GameService{
                 rating.getUpdatedAt(),
                 voteStats.upvoteCount(),
                 voteStats.downvoteCount(),
-                userVote != null ? userVote.name() : null
+                userVote != null ? userVote.name() : null,
+                "APP",
+                null,
+                canEdit,
+                canVote
+        );
+    }
+
+    private GameReviewResponse toGameReviewResponse(SteamUserReview review) {
+        String username = Optional.ofNullable(review.getSteamAccount())
+                .map(com.gamelog.gamelog.model.SteamAccount::getUser)
+                .map(com.gamelog.gamelog.model.User::getUsername)
+                .orElse("Usuário Steam");
+
+        Instant createdAt = review.getReviewedAt() != null ? review.getReviewedAt() : review.getImportedAt();
+        Instant updatedAt = review.getImportedAt() != null ? review.getImportedAt() : createdAt;
+        return new GameReviewResponse(
+                review.getId(),
+                null,
+                review.getReviewText(),
+                username,
+                createdAt,
+                updatedAt,
+                0L,
+                0L,
+                null,
+                "STEAM",
+                review.getRecommended(),
+                false,
+                false
         );
     }
 
     private GameSummaryResponse toSummaryResponse(
             Game game,
-            Map<Long, Long> reviewsByGame,
+            Map<Long, Long> appReviewsByGame,
+            Map<Long, Long> steamReviewsByGame,
             Map<Long, List<String>> genresByGame,
             Map<Long, List<GamePlatform>> platformsByGame
     ) {
         String resolvedCoverUrl = gameImageResolver.resolveAndPersistCoverUrl(game);
+        Long appReviewCount = appReviewsByGame.getOrDefault(game.getId(), 0L);
+        Long steamReviewCount = steamReviewsByGame.getOrDefault(game.getId(), 0L);
 
         return new GameSummaryResponse(
             game.getId(),
@@ -380,18 +440,38 @@ public class GameServiceImpl implements GameService{
             game.getDefaultRating(),
             game.getReleaseDate(),
             game.getDeveloper(),
-            reviewsByGame.getOrDefault(game.getId(), 0L),
+            appReviewCount + steamReviewCount,
+            appReviewCount,
+            steamReviewCount,
             genresByGame.getOrDefault(game.getId(), List.of()),
             platformsByGame.getOrDefault(game.getId(), List.of())
         );
     }
 
-    private Map<Long, Long> getReviewsByGame(Collection<Game> games) {
+    private Map<Long, Long> getAppReviewsByGame(Collection<Game> games) {
         Set<Long> gameIds = games.stream().map(Game::getId).collect(Collectors.toSet());
-        Map<Long, Long> reviewsByGame = new HashMap<>();
+        Map<Long, Long> appReviewsByGame = new HashMap<>();
+
         ratingRepository.countRatingsByGameIds(gameIds)
-                .forEach(tuple -> reviewsByGame.put((Long) tuple[0], (Long) tuple[1]));
-        return reviewsByGame;
+                .forEach(tuple -> appReviewsByGame.put((Long) tuple[0], (Long) tuple[1]));
+
+        return appReviewsByGame;
+    }
+
+    private Map<Long, Long> getSteamReviewsByGame(Collection<Game> games) {
+        Set<Long> gameIds = games.stream().map(Game::getId).collect(Collectors.toSet());
+        Map<Long, Long> steamReviewsByGame = new HashMap<>();
+
+        steamUserReviewRepository.findAllByGameIdInAndActiveTrue(gameIds)
+                .forEach(steamReview -> {
+                    if (steamReview.getGame() == null || steamReview.getGame().getId() == null) {
+                        return;
+                    }
+
+                    steamReviewsByGame.merge(steamReview.getGame().getId(), 1L, Long::sum);
+                });
+
+        return steamReviewsByGame;
     }
 
     private Map<Long, List<String>> getGenresByGame(Collection<Game> games) {

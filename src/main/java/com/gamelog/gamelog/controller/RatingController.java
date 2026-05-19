@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Objects;
 
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 
@@ -44,18 +45,7 @@ public class RatingController {
                 .buildAndExpand(savedRating.getId())
                 .toUri();
 
-        String username = savedRating.getUser() != null ? savedRating.getUser().getUsername() : null;
-        GameReviewResponse resp = new GameReviewResponse(
-            savedRating.getId(),
-            savedRating.getScore(),
-            savedRating.getReview(),
-            username,
-            savedRating.getCreatedAt(),
-            savedRating.getUpdatedAt(),
-            0L,
-            0L,
-            null
-        );
+        GameReviewResponse resp = toResponse(savedRating, userId);
 
         return ResponseEntity.created(location).body(resp);
     }
@@ -64,8 +54,7 @@ public class RatingController {
         public ResponseEntity<GameReviewResponse> getById(@PathVariable Long id) {
         return ratingService.get(id)
             .map(r -> {
-                String u = r.getUser() != null ? r.getUser().getUsername() : null;
-                return ResponseEntity.ok(new GameReviewResponse(r.getId(), r.getScore(), r.getReview(), u, r.getCreatedAt(), r.getUpdatedAt(), 0L, 0L, null));
+                return ResponseEntity.ok(toResponse(r, null));
             })
             .orElseGet(() -> ResponseEntity.notFound().build());
         }
@@ -80,16 +69,12 @@ public class RatingController {
 
         return ratingService.get(id)
                 .map(existingRating -> {
-                    Rating rating = this.ratingService.buildRating(request, userId);
-
-                    existingRating.setUser(rating.getUser());
-                    existingRating.setGame(rating.getGame());
-                    existingRating.setScore(rating.getScore());
-                    existingRating.setReview(rating.getReview());
+                    assertOwner(existingRating, userId);
+                    existingRating.setScore(request.score());
+                    existingRating.setReview(request.review());
 
                     Rating saved = ratingService.save(existingRating);
-                    String u = saved.getUser() != null ? saved.getUser().getUsername() : null;
-                    return ResponseEntity.ok(new GameReviewResponse(saved.getId(), saved.getScore(), saved.getReview(), u, saved.getCreatedAt(), saved.getUpdatedAt(), 0L, 0L, null));
+                    return ResponseEntity.ok(toResponse(saved, userId));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -118,13 +103,46 @@ public class RatingController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id, Authentication authentication) {
+        Long userId = getAuthenticatedUserId(authentication);
+
         return ratingService.get(id)
                 .map(rating -> {
+                    assertOwner(rating, userId);
                     ratingService.delete(rating);
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    private static GameReviewResponse toResponse(Rating rating, Long currentUserId) {
+        String username = rating.getUser() != null ? rating.getUser().getUsername() : null;
+        Long ownerId = rating.getUser() != null ? rating.getUser().getId() : null;
+        boolean canEdit = currentUserId != null && Objects.equals(ownerId, currentUserId);
+        boolean canVote = currentUserId != null && ownerId != null && !Objects.equals(ownerId, currentUserId);
+
+        return new GameReviewResponse(
+                rating.getId(),
+                rating.getScore(),
+                rating.getReview(),
+                username,
+                rating.getCreatedAt(),
+                rating.getUpdatedAt(),
+                0L,
+                0L,
+                null,
+                "APP",
+                null,
+                canEdit,
+                canVote
+        );
+    }
+
+    private static void assertOwner(Rating rating, Long userId) {
+        Long ownerId = rating.getUser() != null ? rating.getUser().getId() : null;
+        if (!Objects.equals(ownerId, userId)) {
+            throw new ResponseStatusException(FORBIDDEN, "Access denied");
+        }
     }
 }
 

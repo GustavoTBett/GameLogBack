@@ -17,6 +17,8 @@ public record GameDetailResponse(
         LocalDate releaseDate,
         String developer,
         Long totalReviews,
+        Long appReviewCount,
+        Long steamReviewCount,
         List<String> genres,
         List<GamePlatform> platforms,
         List<GameReviewResponse> reviews
