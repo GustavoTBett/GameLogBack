@@ -10,8 +10,9 @@ import java.time.Instant;
 @Data
 @Entity
 @Table(name = "steam_account", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id"}),
-        @UniqueConstraint(columnNames = {"steam_id"})
+        @UniqueConstraint(columnNames = {"user_id"})
+}, indexes = {
+        @Index(name = "idx_steam_account_steam_id", columnList = "steam_id")
 })
 @Builder
 @NoArgsConstructor
@@ -23,7 +24,7 @@ public class SteamAccount extends MasterEntityWAudit {
     @NotNull(message = "User is required")
     private User user;
 
-    @Column(name = "steam_id", nullable = false, unique = true, length = 32)
+    @Column(name = "steam_id", nullable = false, length = 32)
     @NotNull(message = "steamId is required")
     private String steamId;
 

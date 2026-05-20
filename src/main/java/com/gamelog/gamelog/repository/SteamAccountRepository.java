@@ -9,6 +9,4 @@ public interface SteamAccountRepository extends JpaRepository<SteamAccount, Long
 
     Optional<SteamAccount> findByUserId(Long userId);
 
-    Optional<SteamAccount> findBySteamId(String steamId);
-
 }

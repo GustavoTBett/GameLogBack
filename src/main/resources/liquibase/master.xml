@@ -9,5 +9,6 @@
     <include file="liquibase/changelogs/GLBACK-003/changelog.xml"/>
     <include file="liquibase/changelogs/GLBACK-004/changelog.xml"/>
     <include file="liquibase/changelogs/GLBACK-005/changelog.xml"/>
+    <include file="liquibase/changelogs/GLBACK-006/changelog.xml"/>
 
 </databaseChangeLog>
