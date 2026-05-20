@@ -90,6 +90,7 @@ As configurações principais ficam em `src/main/resources/application.propertie
 - CORS controlado por `APP_SECURITY_ALLOWED_ORIGINS`
 - cookie seguro opcional via `APP_SECURITY_COOKIE_SECURE`
 - login Google configurado por `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`
+- callback Google opcional via `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_REDIRECT_URI`
 - fluxo inicial exposto em `GET /auth/google`
 
 ### E-mail e redefinição de senha
@@ -121,6 +122,26 @@ Fluxo recomendado:
 3. Para login Google, iniciar em `GET /auth/google` e deixar o backend concluir o callback OAuth2.
 4. Enviar cookie de sessão e o header CSRF nas requisições de escrita.
 5. `POST /auth/logout` encerra a sessão.
+
+### Safari e frontend em outro site
+
+Safari pode bloquear o cookie de sessão quando o frontend está em
+`https://game-log-front.vercel.app` e a API em
+`https://api-gamelog-back.gustavotbett.com.br`, porque a chamada vira
+cross-site. O sintoma é `GET /auth/me` chegar sem `GAMELOG_SESSION`.
+
+Se o frontend usar o proxy same-origin do Next em `/api/backend`, configure o
+callback OAuth do backend para passar pelo mesmo domínio do frontend:
+
+```bash
+APP_FRONTEND_BASE_URL=https://game-log-front.vercel.app
+APP_SECURITY_ALLOWED_ORIGINS=https://game-log-front.vercel.app
+SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_REDIRECT_URI=https://game-log-front.vercel.app/api/backend/login/oauth2/code/google
+```
+
+Essa URL também precisa estar nos URIs de redirecionamento autorizados do Google.
+A outra opção é hospedar o frontend em um subdomínio do mesmo site da API, por
+exemplo `https://gamelog.gustavotbett.com.br`.
 
 ## Endpoints atuais
 
